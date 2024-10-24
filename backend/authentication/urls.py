@@ -11,7 +11,8 @@ from .views import (
     PasswordResetView,
     EmailVerificationView,
     UserLimitsView,
-    GoogleLoginView
+    GoogleLoginView,
+    GitHubLoginView
 )
 
 router = DefaultRouter()
@@ -30,4 +31,5 @@ urlpatterns = [
     path('email/verify/', EmailVerificationView.as_view(), name='email-verify'),
     path('limits/', UserLimitsView.as_view(), name='user-limits'),
     path('google/', GoogleLoginView.as_view(), name='google_login'),
+    path('github/', GitHubLoginView.as_view(), name='github_login'),
 ]
