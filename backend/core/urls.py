@@ -15,5 +15,5 @@ from rest_framework_simplejwt.views import (
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/', include('workflow_engine.urls')),
-    path('api-auth/', include('rest_framework.urls')),  # Add this line
+    path('api-auth/', include('authentication.urls')),
 ]

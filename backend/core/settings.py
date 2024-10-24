@@ -44,6 +44,12 @@ INSTALLED_APPS = [
     "django.contrib.sessions",   #Session framework
     "django.contrib.messages",   #Messsage framework
     "django.contrib.staticfiles",  #Static files manager
+    'django.contrib.sites',  # Required for allauth
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+    'allauth.socialaccount.providers.github',
     
     # Third Party Apps
     "rest_framework",   #API framework
@@ -55,6 +61,67 @@ INSTALLED_APPS = [
     "authentication" #Custom Authentication
 ]
 
+SITE_ID = 1
+
+AUTH_USER_MODEL = 'authentication.User'
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
+API_KEY_LIMITS = {
+    'free': 2,
+    'basic': 5,
+    'premium': 10,
+    'enterprise': 25,
+}
+DEFAULT_API_KEY_LIMIT = 2
+
+# Add plan-specific workflow limits
+WORKFLOW_LIMITS = {
+    'free': 3,
+    'basic': 10,
+    'premium': 50,
+    'enterprise': 100,
+}
+DEFAULT_WORKFLOW_LIMIT = 10
+
+# Email Configuration
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # For development
+DEFAULT_FROM_EMAIL = 'noreply@aizapier.com'
+
+
+#  Social Account Providers
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'APP': {
+            'client_id': os.getenv('GOOGLE_CLIENT_ID'),
+            'secret': os.getenv('GOOGLE_CLIENT_SECRET'),
+            'key': '',
+        },
+        'SCOPE': ['profile', 'email'],
+        'AUTH_PARAMS': {'access_type': 'online'},
+    },
+    'github': {
+        'APP': {
+            'client_id': os.getenv('GITHUB_CLIENT_ID'),
+            'secret': os.getenv('GITHUB_CLIENT_SECRET'),
+            'key': '',
+        },
+        'SCOPE': [
+            'read:user',
+            'user:email',
+        ],
+    }
+}
+
+# Allauth settings
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_AUTHENTICATION_METHOD = 'email'
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+SOCIALACCOUNT_AUTO_SIGNUP = True
 
 # Middleware - software that processes requests/response
 MIDDLEWARE = [
@@ -89,6 +156,8 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "core.wsgi.application"
+
+
 
 
 # Database
@@ -154,6 +223,15 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.IsAuthenticated',
     ),
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/day',
+        'user': '1000/day',
+        'login': '5/minute',
+    }
 }
 
 SIMPLE_JWT = {

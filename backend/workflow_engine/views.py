@@ -8,25 +8,36 @@ from .models import Workflow, WorkflowTask, Webhook, WebhookLog
 from .serializers import WorkflowSerializer, WorkflowTaskSerializer, WebhookSerializer, WebhookLogSerializer
 
 class WorkflowViewSet(viewsets.ModelViewSet):
-    """
-    ViewSet for handling Workflow operations
-    Provides: list, create, retrieve, update, delete
-    """
-    
     serializer_class = WorkflowSerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
-        """
-        Filter workflows to show only those created by the current user
-        """
         return Workflow.objects.filter(created_by=self.request.user)
-    
+
     def perform_create(self, serializer):
-        """
-        Set the created_by field to the current user when creating a workflow
-        """
         serializer.save(created_by=self.request.user)
+
+    @action(detail=False, methods=['get'])
+    def limits(self, request):
+        """Get workflow limit information for current user"""
+        profile = request.user.profile
+        return Response({
+            'plan': profile.plan_type,
+            'total_limit': profile.get_workflow_limit(),
+            'current_count': request.user.workflow_set.filter(is_active=True).count(),
+            'remaining': profile.workflows_remaining()
+        })
+
+    def list(self, request, *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+        # Add limit information to list response
+        profile = request.user.profile
+        response.data['limits'] = {
+            'plan': profile.plan_type,
+            'total_limit': profile.get_workflow_limit(),
+            'remaining': profile.workflows_remaining()
+        }
+        return response
     
 class WorkflowTaskViewSet(viewsets.ModelViewSet):
     """
