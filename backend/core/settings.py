@@ -50,6 +50,9 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
     'allauth.socialaccount.providers.github',
+    'rest_framework.authtoken',  # Add this line
+    'dj_rest_auth',  # Add this if not already present
+    'dj_rest_auth.registration',
     
     # Third Party Apps
     "rest_framework",   #API framework
@@ -93,34 +96,34 @@ DEFAULT_FROM_EMAIL = 'noreply@aizapier.com'
 
 
 #  Social Account Providers
-SOCIALACCOUNT_PROVIDERS = {
-    'google': {
-        'APP': {
-            'client_id': os.getenv('GOOGLE_CLIENT_ID'),
-            'secret': os.getenv('GOOGLE_CLIENT_SECRET'),
-            'key': '',
-        },
-        'SCOPE': ['profile', 'email'],
-        'AUTH_PARAMS': {'access_type': 'online'},
-    },
-    'github': {
-        'APP': {
-            'client_id': os.getenv('GITHUB_CLIENT_ID'),
-            'secret': os.getenv('GITHUB_CLIENT_SECRET'),
-            'key': '',
-        },
-        'SCOPE': [
-            'read:user',
-            'user:email',
-        ],
-    }
-}
+# SOCIALACCOUNT_PROVIDERS = {
+#     'google': {
+#         'APP': {
+#             'client_id': os.getenv('GOOGLE_CLIENT_ID'),
+#             'secret': os.getenv('GOOGLE_CLIENT_SECRET'),
+#             'key': '',
+#         },
+#         'SCOPE': ['profile', 'email'],
+#         'AUTH_PARAMS': {'access_type': 'online'},
+#     },
+#     'github': {
+#         'APP': {
+#             'client_id': os.getenv('GITHUB_CLIENT_ID'),
+#             'secret': os.getenv('GITHUB_CLIENT_SECRET'),
+#             'key': '',
+#         },
+#         'SCOPE': [
+#             'read:user',
+#             'user:email',
+#         ],
+#     }
+# }
 
 # Allauth settings
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_USERNAME_REQUIRED = False
 ACCOUNT_AUTHENTICATION_METHOD = 'email'
-ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_EMAIL_VERIFICATION = 'none' #for now (testing)
 SOCIALACCOUNT_AUTO_SIGNUP = True
 
 # Middleware - software that processes requests/response
@@ -132,6 +135,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
 ]
 
 #URL Configuration root
