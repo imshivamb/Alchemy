@@ -11,6 +11,7 @@ class AIService(BaseRedis):
         super().__init__()
         self.task_prefix = "ai_task:"
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
+        self.setup_subscribers()
     
     async def create_task(self, workflow_id: str, input_data: Dict[Any, Any], model: str) -> str:
         """Create a new AI processing task"""
@@ -52,6 +53,22 @@ class AIService(BaseRedis):
         })
         await self.set_data(f"{self.task_prefix}{task_id}", task_data)
         
+        
+    async def setup_subscribers(self):
+        """Setup subscribers for AI tasks"""
+        await self.subscribe('ai_tasks', self.handle_task_update)
+
+    async def handle_task_update(self, data: dict):
+        """Handle AI task updates"""
+        task_id = data.get('task_id')
+        if task_id:
+            # Update task status and notify relevant systems
+            await self.update_task_progress(
+                task_id,
+                data.get('progress', 0),
+                data.get('status', 'processing')
+            )
+            
     async def process_task(self, task_id: str):
         """Process the AI task asynchronously with Redis storage"""
         #Retrive the task data from Redis
