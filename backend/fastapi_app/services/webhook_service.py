@@ -5,14 +5,15 @@ import httpx
 import json
 import hmac
 import hashlib
-from ...redis.base import BaseRedis
 import logging
+from redis_service.base import BaseRedis
 
 class WebhookService(BaseRedis):
     def __init__(self):
         super().__init__()
         self.webhook_prefix = "webhook_task:"
         logging.basicConfig(level=logging.INFO)
+        self.setup_webhook_monitoring()
 
     async def create_task(self, webhook_id: str, headers: Dict, body: bytes) -> str:
         """Create a new webhook processing task in Redis with a 24-hour TTL."""
@@ -30,26 +31,41 @@ class WebhookService(BaseRedis):
         logging.info(f"Task {task_id} created with status 'pending'")
         return task_id
 
-    def verify_signature(self, secret: str, body: bytes, signature: str) -> bool:
-        """Verify webhook signature to ensure authenticity."""
-        expected_signature = hmac.new(
-            secret.encode(),
-            body,
-            hashlib.sha256
-        ).hexdigest()
-        is_valid = hmac.compare_digest(expected_signature, signature)
-        if not is_valid:
-            logging.warning("Webhook signature verification failed.")
-        return is_valid
+    async def setup_webhook_monitoring(self):
+        """Setup webhook monitoring"""
+        await self.subscribe('webhook_events', self.handle_webhook_event)
+
+    async def handle_webhook_event(self, event_data: dict):
+        """Handle webhook events"""
+        current_metrics = await self.get_data('webhook_metrics') or {
+            'total_received': 0,
+            'successful': 0,
+            'failed': 0
+        }
+
+        event_type = event_data.get('type')
+        if event_type == 'received':
+            current_metrics['total_received'] += 1
+        elif event_type == 'completed':
+            current_metrics['successful'] += 1
+        elif event_type == 'failed':
+            current_metrics['failed'] += 1
+
+        await self.cache_data('webhook_metrics', current_metrics)
 
     async def process_webhook(self, task_id: str):
-        """Process the webhook task asynchronously."""
-        task = await self.get_task_status(task_id)
-        await self.mark_task_processing(task_id)
+        """Process webhook with monitoring"""
+        await self.publish('webhook_events', {
+            'type': 'received',
+            'webhook_id': task_id,
+            'timestamp': datetime.utcnow().isoformat()
+        })
 
         try:
+            task = await self.get_task_status(task_id)
+            await self.mark_task_processing(task_id)
+
             webhook_data = await self.fetch_webhook_data(task["webhook_id"])
-            
             if not self.is_signature_valid(task, webhook_data):
                 raise ValueError("Invalid webhook signature")
 
@@ -59,8 +75,17 @@ class WebhookService(BaseRedis):
                 await self.send_webhook(webhook_data, task["body"])
 
             await self.mark_task_completed(task_id)
+            await self.publish('webhook_events', {
+                'type': 'completed',
+                'webhook_id': task_id
+            })
         except Exception as e:
             await self.mark_task_failed(task_id, str(e))
+            await self.publish('webhook_events', {
+                'type': 'failed',
+                'webhook_id': task_id,
+                'error': str(e)
+            })
             logging.error(f"Error processing task {task_id}: {e}")
 
     async def fetch_webhook_data(self, webhook_id: str) -> Dict[str, Any]:
@@ -76,6 +101,14 @@ class WebhookService(BaseRedis):
         if signature:
             return self.verify_signature(webhook_data["secret_key"], task["body"].encode(), signature)
         return True  # No signature to validate
+
+    def verify_signature(self, secret: str, body: bytes, signature: str) -> bool:
+        """Verify webhook signature to ensure authenticity."""
+        expected_signature = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+        is_valid = hmac.compare_digest(expected_signature, signature)
+        if not is_valid:
+            logging.warning("Webhook signature verification failed.")
+        return is_valid
 
     async def trigger_workflow(self, webhook_data: Dict, body: str):
         """Trigger a workflow based on webhook data."""

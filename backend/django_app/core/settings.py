@@ -58,7 +58,6 @@ INSTALLED_APPS = [
     "rest_framework",   #API framework
     
     # Local Apps
-    "api",   #Main API App
     "integrations",  # External Service Integrations
     "workflow_engine",  # Workflow Management
     "authentication" #Custom Authentication
@@ -235,8 +234,13 @@ REST_FRAMEWORK = {
         'anon': '100/day',
         'user': '1000/day',
         'login': '5/minute',
-    }
+    },
+    'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.URLPathVersioning',
+    'DEFAULT_VERSION': 'v1',
+    'ALLOWED_VERSIONS': ['v1'],
 }
+
+APPEND_SLASH = True
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),

@@ -1,3 +1,5 @@
+# backend/django_app/core/urls.py
+
 from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import (
@@ -5,15 +7,20 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 
-# urlpatterns = [
-#     path('admin/', admin.site.urls),
-#     path('api/v1/', include('workflow_engine.urls')), # workflow API endpoints
-#     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-#     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-# ]
-
 urlpatterns = [
+    # Django Admin
     path('admin/', admin.site.urls),
-    path('api/v1/', include('workflow_engine.urls')),
-    path('api/auth/', include('authentication.urls')),
+    
+    # API Endpoints (v1)
+    path('api/v1/', include([
+        # Authentication endpoints
+        path('auth/', include('authentication.urls')),
+        
+        # Workflow endpoints
+        path('', include('workflow_engine.urls')),
+        
+        # JWT Token endpoints (if you want them separate from auth)
+        path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+        path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    ])),
 ]
