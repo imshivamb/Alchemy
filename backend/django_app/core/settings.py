@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     
     # Third Party Apps
     "rest_framework",   #API framework
+    'drf_yasg',
     
     # Local Apps
     "integrations",  # External Service Integrations
@@ -93,6 +94,21 @@ DEFAULT_WORKFLOW_LIMIT = 10
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # For development
 DEFAULT_FROM_EMAIL = 'noreply@aizapier.com'
 
+
+# API Documentation settings
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'Bearer': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header'
+        }
+    },
+    'USE_SESSION_AUTH': False,
+    'PERSIST_AUTH': True,
+    'REFETCH_SCHEMA_WITH_AUTH': True,
+    'REFETCH_SCHEMA_ON_LOGOUT': True,
+}
 
 #  Social Account Providers
 # SOCIALACCOUNT_PROVIDERS = {

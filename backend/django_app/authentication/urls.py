@@ -12,13 +12,20 @@ from .views import (
     EmailVerificationView,
     UserLimitsView,
     GoogleLoginView,
-    GitHubLoginView
+    GitHubLoginView,
+    AdminUserViewSet,
+    AdminTeamViewSet,
+    UserMeView
 )
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet, basename='user')
 router.register(r'teams', TeamViewSet, basename='team')
 router.register(r'api-keys', APIKeyViewSet, basename='api-key')
+
+# Admin routes
+router.register(r'admin/users', AdminUserViewSet, basename='admin-user')
+router.register(r'admin/teams', AdminTeamViewSet, basename='admin-team')
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -32,4 +39,7 @@ urlpatterns = [
     path('limits/', UserLimitsView.as_view(), name='user-limits'),
     path('google/', GoogleLoginView.as_view(), name='google_login'),
     path('github/', GitHubLoginView.as_view(), name='github_login'),
+    path('me/', UserMeView.as_view(), name='user-me'),
+    
+    
 ]

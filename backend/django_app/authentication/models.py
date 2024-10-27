@@ -205,3 +205,33 @@ class LoginHistory(models.Model):
 
     def __str__(self):
         return f"{self.user.email} - {self.login_time}"
+    
+    
+class TeamActivity(models.Model):
+    """Track team activities"""
+    team = models.ForeignKey(Team, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    action = models.CharField(max_length=100)
+    details = models.JSONField(default=dict)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+class TeamAuditLog(models.Model):
+    """Audit log for team changes"""
+    team = models.ForeignKey(Team, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    action = models.CharField(max_length=100)
+    changes = models.JSONField(default=dict)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    
+class UserActivity(models.Model):
+    """Track user activities"""
+    user = models.ForeignKey(User, related_name='activities', on_delete=models.CASCADE)
+    action = models.CharField(max_length=100)
+    details = models.JSONField(default=dict)
+    ip_address = models.GenericIPAddressField(null=True)
+    user_agent = models.TextField(blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']

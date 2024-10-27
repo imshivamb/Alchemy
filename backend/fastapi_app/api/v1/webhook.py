@@ -3,6 +3,7 @@ from starlette.status import HTTP_404_NOT_FOUND, HTTP_500_INTERNAL_SERVER_ERROR
 from ...services.webhook_service import WebhookService
 from typing import Dict, Any
 import logging
+from ...core.auth import get_current_user
 
 router = APIRouter()
 
@@ -19,7 +20,8 @@ async def handle_webhook(
     webhook_id: str,
     request: Request,
     background_tasks: BackgroundTasks,
-    webhook_service: WebhookService = Depends(get_webhook_service)
+    webhook_service: WebhookService = Depends(get_webhook_service),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Handle incoming webhooks and trigger workflows
@@ -28,9 +30,17 @@ async def handle_webhook(
         # Get request details
         headers = dict(request.headers)
         body = await request.body()
+        
+        # Check webhook ownership
+        webhook = await webhook_service.get_webhook(webhook_id)
+        if webhook['user_id'] != current_user.get('user_id'):
+            raise HTTPException(
+                status_code=403,
+                detail="Not authorized to access this webhook"
+            )
 
         # Create a webhook processing task in Redis
-        task_id = await webhook_service.create_task(webhook_id, headers, body)
+        task_id = await webhook_service.create_task(webhook_id, headers, body, user_id=current_user.get('user_id'))
 
         # Add webhook processing to background tasks
         background_tasks.add_task(webhook_service.process_webhook, task_id)
@@ -51,7 +61,8 @@ async def handle_webhook(
 @router.get("/status/{task_id}")
 async def get_webhook_status(
     task_id: str,
-    webhook_service: WebhookService = Depends(get_webhook_service)
+    webhook_service: WebhookService = Depends(get_webhook_service),
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Get the processing status of a webhook task
@@ -63,6 +74,11 @@ async def get_webhook_status(
         # Log status retrieval
         logger.info(f"Fetched status for task_id={task_id}: {status['status']}")
 
+        if status['user_id'] != current_user.get('user_id'):
+            raise HTTPException(
+                status_code=403,
+                detail="Not authorized to view this status"
+            )
         return status
 
     except Exception as e:

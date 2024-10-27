@@ -1,9 +1,10 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
-from .models import UserProfile, Team, TeamMembership, APIKey
+from .models import UserProfile, Team, TeamMembership, APIKey, UserActivity, TeamActivity, TeamAuditLog
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Count
 
 User = get_user_model()
 
@@ -137,3 +138,183 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 
 class EmailVerificationSerializer(serializers.Serializer):
     token = serializers.CharField()
+    
+    
+class UserActivitySerializer(serializers.ModelSerializer):
+    """
+    Serializer for user activities
+    """
+    class Meta:
+        model = UserActivity
+        fields = [
+            'id',
+            'action',
+            'details',
+            'ip_address',
+            'user_agent',
+            'timestamp'
+        ]
+
+class UserExportSerializer(serializers.ModelSerializer):
+    """
+    Serializer for exporting user data
+    Includes detailed user information
+    """
+    teams = serializers.SerializerMethodField()
+    profile = serializers.SerializerMethodField()
+    activity_summary = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = User
+        fields = [
+            'id',
+            'email',
+            'first_name',
+            'last_name',
+            'organization',
+            'is_active',
+            'date_joined',
+            'last_login',
+            'teams',
+            'profile',
+            'activity_summary'
+        ]
+        
+    def get_teams(self, obj):
+        return TeamMembership.objects.filter(user=obj).values(
+            'team__name',
+            'role',
+            'joined_at'
+        )
+        
+    def get_profile(self, obj):
+        return {
+            'plan_type': obj.profile.plan_type,
+            'max_workflows': obj.profile.max_workflows,
+            'timezone': obj.profile.timezone
+        }
+        
+    def get_activity_summary(self, obj):
+        recent_activities = UserActivity.objects.filter(
+            user=obj
+        ).order_by('-timestamp')[:5]
+        return UserActivitySerializer(recent_activities, many=True).data
+
+class ActivitySerializer(serializers.ModelSerializer):
+    """
+    Serializer for team activities
+    """
+    user = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = TeamActivity
+        fields = [
+            'id',
+            'team',
+            'user',
+            'action',
+            'details',
+            'timestamp'
+        ]
+        
+    def get_user(self, obj):
+        return {
+            'id': obj.user.id,
+            'email': obj.user.email,
+            'name': f"{obj.user.first_name} {obj.user.last_name}".strip()
+        } if obj.user else None
+
+class TeamAuditLogSerializer(serializers.ModelSerializer):
+    """
+    Serializer for team audit logs
+    """
+    user = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = TeamAuditLog
+        fields = [
+            'id',
+            'team',
+            'user',
+            'action',
+            'changes',
+            'timestamp'
+        ]
+        
+    def get_user(self, obj):
+        return {
+            'id': obj.user.id,
+            'email': obj.user.email,
+            'name': f"{obj.user.first_name} {obj.user.last_name}".strip()
+        } if obj.user else None
+
+class TeamMembershipDetailSerializer(serializers.ModelSerializer):
+    """
+    Detailed serializer for team membership
+    """
+    user = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = TeamMembership
+        fields = [
+            'id',
+            'user',
+            'role',
+            'joined_at'
+        ]
+        
+    def get_user(self, obj):
+        return {
+            'id': obj.user.id,
+            'email': obj.user.email,
+            'name': f"{obj.user.first_name} {obj.user.last_name}".strip(),
+            'is_active': obj.user.is_active
+        }
+
+class DetailedTeamSerializer(serializers.ModelSerializer):
+    """
+    Detailed team serializer for admin views
+    """
+    members = TeamMembershipDetailSerializer(
+        source='memberships',
+        many=True,
+        read_only=True
+    )
+    owner = serializers.SerializerMethodField()
+    statistics = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Team
+        fields = [
+            'id',
+            'name',
+            'description',
+            'owner',
+            'members',
+            'created_at',
+            'updated_at',
+            'statistics'
+        ]
+        
+    def get_owner(self, obj):
+        return {
+            'id': obj.owner.id,
+            'email': obj.owner.email,
+            'name': f"{obj.owner.first_name} {obj.owner.last_name}".strip()
+        }
+        
+    def get_statistics(self, obj):
+        return {
+            'total_members': obj.members.count(),
+            'active_members': obj.members.filter(is_active=True).count(),
+            'roles': TeamMembership.objects.filter(team=obj).values(
+                'role'
+            ).annotate(count=Count('id'))
+        }
+        
+class UserPlanUpdateSerializer(serializers.Serializer):
+    plan_type = serializers.ChoiceField(
+        choices=['free', 'basic', 'premium', 'enterprise'],
+        required=True,
+        help_text="The plan type to update to"
+    )
