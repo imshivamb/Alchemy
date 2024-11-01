@@ -6,4 +6,4 @@ class AuthConfig(AppConfig):
     name = "authentication"
 
     def ready(self):
-        import authentication.signals 
+        from . import signals 

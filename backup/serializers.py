@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from .models import UserProfile, Team, TeamMembership, APIKey, UserActivity, TeamActivity, TeamAuditLog
@@ -7,6 +8,9 @@ from django.db import transaction
 from django.db.models import Count
 
 User = get_user_model()
+
+class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
+    username_field = 'email'
 
 class UserProfileSerializer(serializers.ModelSerializer):
     """
@@ -30,16 +34,16 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = (
-            'id', 'username', 'password', 'confirm_password', 'email',
+        fields = ( 'email',
+            'id', 'password', 'confirm_password',
             'first_name', 'last_name', 'phone_number', 'organization',
             'is_verified', 'created_at'
         )
         read_only_fields = ('id', 'is_verified', 'created_at')
         extra_kwargs = {
             'email': {'required': True},
-            'first_name': {'required': False},
-            'last_name': {'required': False},
+            'first_name': {'required': True},
+            'last_name': {'required': True},
             'phone_number': {'required': False},
             'organization': {'required': False},
         }
@@ -86,11 +90,11 @@ class TeamSerializer(serializers.ModelSerializer):
         return obj.members.count()
 
 class TeamMembershipSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(source='user.username', read_only=True)
+    user_email = serializers.EmailField(source='user.email', read_only=True)
     
     class Meta:
         model = TeamMembership
-        fields = ['id', 'user', 'username', 'team', 'role', 'joined_at']
+        fields = ['id', 'user', 'user_email', 'team', 'role', 'joined_at']
         read_only_fields = ['joined_at']
     
     def validate(self, attrs):
@@ -163,7 +167,7 @@ class UserExportSerializer(serializers.ModelSerializer):
     teams = serializers.SerializerMethodField()
     profile = serializers.SerializerMethodField()
     activity_summary = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = User
         fields = [

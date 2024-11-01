@@ -35,6 +35,7 @@ DEBUG = os.getenv("DEBUG", "False") == "True"
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
 
 
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -50,8 +51,8 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
     'allauth.socialaccount.providers.github',
-    'rest_framework.authtoken',  # Add this line
-    'dj_rest_auth',  # Add this if not already present
+    'rest_framework.authtoken', 
+    'dj_rest_auth',  
     'dj_rest_auth.registration',
     
     # Third Party Apps
@@ -73,6 +74,16 @@ AUTHENTICATION_BACKENDS = [
     'allauth.account.auth_backends.AuthenticationBackend',
 ]
 
+REST_AUTH = {
+    'USE_JWT': True,
+    'JWT_AUTH_COOKIE': 'auth',
+    'JWT_AUTH_REFRESH_COOKIE': 'refresh',
+    'USER_DETAILS_SERIALIZER': 'authentication.serializers.auth.UserSerializer',
+    # Add these settings
+    'OLD_PASSWORD_FIELD_ENABLED': True,
+    'REGISTER_SERIALIZER': 'authentication.serializers.auth.RegisterSerializer',
+}
+
 API_KEY_LIMITS = {
     'free': 2,
     'basic': 5,
@@ -93,6 +104,9 @@ DEFAULT_WORKFLOW_LIMIT = 10
 # Email Configuration
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # For development
 DEFAULT_FROM_EMAIL = 'noreply@aizapier.com'
+# Email verification settings
+EMAIL_VERIFICATION_EXPIRY_HOURS = 24  # Token expires after 24 hours
+EMAIL_VERIFICATION_COOLDOWN_MINUTES = 5  # Wait 5 minutes between resend attempts
 
 
 # API Documentation settings
@@ -110,36 +124,77 @@ SWAGGER_SETTINGS = {
     'REFETCH_SCHEMA_ON_LOGOUT': True,
 }
 
-#  Social Account Providers
-# SOCIALACCOUNT_PROVIDERS = {
-#     'google': {
-#         'APP': {
-#             'client_id': os.getenv('GOOGLE_CLIENT_ID'),
-#             'secret': os.getenv('GOOGLE_CLIENT_SECRET'),
-#             'key': '',
-#         },
-#         'SCOPE': ['profile', 'email'],
-#         'AUTH_PARAMS': {'access_type': 'online'},
-#     },
-#     'github': {
-#         'APP': {
-#             'client_id': os.getenv('GITHUB_CLIENT_ID'),
-#             'secret': os.getenv('GITHUB_CLIENT_SECRET'),
-#             'key': '',
-#         },
-#         'SCOPE': [
-#             'read:user',
-#             'user:email',
-#         ],
-#     }
-# }
+# Social Authentication Settings
+GOOGLE_OAUTH_CALLBACK_URL = os.getenv('GOOGLE_OAUTH_CALLBACK_URL', 'http://localhost:3000/auth/google/callback')
+GITHUB_OAUTH_CALLBACK_URL = os.getenv('GITHUB_OAUTH_CALLBACK_URL', 'http://localhost:3000/auth/github/callback')
 
-# Allauth settings
+# Social Account Provider Settings
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'APP': {
+            'client_id': os.getenv('GOOGLE_CLIENT_ID'),
+            'secret': os.getenv('GOOGLE_CLIENT_SECRET'),
+            'key': ''
+        },
+        'SCOPE': [
+            'profile',
+            'email',
+        ],
+        'AUTH_PARAMS': {
+            'access_type': 'online',
+        },
+        'OAUTH_PKCE_ENABLED': True,
+    },
+    'github': {
+        'APP': {
+            'client_id': os.getenv('GITHUB_CLIENT_ID'),
+            'secret': os.getenv('GITHUB_CLIENT_SECRET'),
+            'key': ''
+        },
+        'SCOPE': [
+            'read:user',
+            'user:email',
+        ],
+    }
+}
+
+
+# Django AllAuth Settings
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_USERNAME_REQUIRED = False
 ACCOUNT_AUTHENTICATION_METHOD = 'email'
-ACCOUNT_EMAIL_VERIFICATION = 'none' #for now (testing)
+ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_USERNAME_VALIDATORS = None
+
+# Additional AllAuth Settings
+# Social Authentication General Settings
+SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
+SOCIALACCOUNT_EMAIL_REQUIRED = True
+SOCIALACCOUNT_QUERY_EMAIL = True
 SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_ADAPTER = 'authentication.adapters.CustomSocialAccountAdapter'
+
+# JWT Settings for Social Auth
+SOCIAL_AUTH_ALLOWED_REDIRECT_URIS = [
+    'http://localhost:3000/auth/google/callback',
+    'http://localhost:3000/auth/github/callback',
+]
+
+# Additional Social Auth Settings
+SOCIAL_AUTH_PIPELINE = (
+    'social_core.pipeline.social_auth.social_details',
+    'social_core.pipeline.social_auth.social_uid',
+    'social_core.pipeline.social_auth.auth_allowed',
+    'social_core.pipeline.social_auth.social_user',
+    'social_core.pipeline.user.get_username',
+    'social_core.pipeline.user.create_user',
+    'social_core.pipeline.social_auth.associate_user',
+    'social_core.pipeline.social_auth.load_extra_data',
+    'social_core.pipeline.user.user_details',
+)
+
 
 # Middleware - software that processes requests/response
 MIDDLEWARE = [
@@ -222,7 +277,7 @@ TIME_ZONE = "UTC"
 USE_I18N = True
 
 USE_TZ = True
-
+API_BASE_URL = 'http://127.0.0.1:8000' 
 
 # Static files configuration
 STATIC_URL = 'static/'
@@ -251,6 +306,11 @@ REST_FRAMEWORK = {
         'user': '1000/day',
         'login': '5/minute',
     },
+    'DEFAULT_PARSER_CLASSES': [
+        'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.MultiPartParser',
+    ],
     'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.URLPathVersioning',
     'DEFAULT_VERSION': 'v1',
     'ALLOWED_VERSIONS': ['v1'],
@@ -272,4 +332,6 @@ SIMPLE_JWT = {
     'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
     'USER_ID_FIELD': 'id',
     'USER_ID_CLAIM': 'user_id',
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
 }

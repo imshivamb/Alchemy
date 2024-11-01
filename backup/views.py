@@ -35,7 +35,8 @@ from .serializers import (
     ActivitySerializer,
     TeamAuditLogSerializer,
     UserPlanUpdateSerializer,
-    UserProfileSerializer
+    EmailTokenObtainPairSerializer,
+
 )
 import uuid
 
@@ -47,11 +48,10 @@ class RegisterView(generics.CreateAPIView):
     throttle_classes = [AnonRateThrottle]
 
     
+
+
 class LoginView(TokenObtainPairView):
-    """
-    Login view that extends TokenObtainPairView to add custom functionality
-    like login history tracking
-    """
+    serializer_class = EmailTokenObtainPairSerializer
     throttle_classes = [AnonRateThrottle]
 
     def post(self, request, *args, **kwargs):
@@ -59,9 +59,8 @@ class LoginView(TokenObtainPairView):
             response = super().post(request, *args, **kwargs)
             
             if response.status_code == 200:
-                user = User.objects.get(username=request.data.get('username'))
+                user = User.objects.get(email=request.data.get('email'))
                 
-                # Create login history entry
                 LoginHistory.objects.create(
                     user=user,
                     ip_address=self.get_client_ip(request),
@@ -79,13 +78,18 @@ class LoginView(TokenObtainPairView):
                 
             return response
         except Exception as e:
-            LoginHistory.objects.create(
-                user=User.objects.get(username=request.data.get('username')),
-                ip_address=self.get_client_ip(request),
-                user_agent=request.META.get('HTTP_USER_AGENT', ''),
-                status='failed',
-                error_message=str(e)
-            )
+            try:
+                if request.data.get('email'):
+                    user = User.objects.get(email=request.data.get('email'))
+                    LoginHistory.objects.create(
+                        user=user,
+                        ip_address=self.get_client_ip(request),
+                        user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                        status='failed',
+                        error_message=str(e)
+                    )
+            except User.DoesNotExist:
+                pass
             raise
 
     def get_client_ip(self, request):

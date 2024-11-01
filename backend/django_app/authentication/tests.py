@@ -9,7 +9,6 @@ class AuthenticationTests(APITestCase):
         self.register_url = reverse('register')
         self.login_url = reverse('login')
         self.user_data = {
-            'username': 'testuser',
             'email': 'test@example.com',
             'password': 'StrongPass123!',
             'password2': 'StrongPass123!',
@@ -25,14 +24,13 @@ class AuthenticationTests(APITestCase):
     def test_user_login(self):
         # Create user first
         User.objects.create_user(
-            username='testuser',
             email='test@example.com',
             password='StrongPass123!'
         )
         
         # Try logging in
         response = self.client.post(self.login_url, {
-            'username': 'testuser',
+            'email': 'test@example.com',
             'password': 'StrongPass123!'
         })
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -42,7 +40,6 @@ class AuthenticationTests(APITestCase):
     def test_password_reset(self):
         # Create user
         user = User.objects.create_user(
-            username='testuser',
             email='test@example.com',
             password='StrongPass123!'
         )
@@ -56,7 +53,7 @@ class AuthenticationTests(APITestCase):
 class UserLimitsTests(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            username='testuser',
+            email='test@example.com',
             password='testpass123'
         )
         self.client.force_authenticate(user=self.user)
