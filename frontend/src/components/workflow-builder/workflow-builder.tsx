@@ -1,28 +1,44 @@
-// components/workflow-builder/WorkflowBuilder.tsx
+"use client";
 
 import React, { useCallback } from "react";
-import ReactFlow, {
+import {
+  ReactFlow,
   Background,
   BackgroundVariant,
   Controls,
   MiniMap,
   Panel,
-} from "reactflow";
+  NodeTypes,
+  Node,
+  NodeProps,
+} from "@xyflow/react";
 import { useWorkflowState } from "@/stores/workflow.store";
 import NodePalette from "./sidebar/node-palette";
-import { ConfigPanel } from "./sidebar/config-panel";
+import ConfigPanel from "./sidebar/config-panel";
 import TriggerNode from "./nodes/trigger-node";
 import ActionNode from "./nodes/action-node";
 import ConditionNode from "./nodes/condition-node";
 import { Button } from "@/components/ui/button";
 import { Save, Play } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { WorkflowNode } from "@/types/workflow.types";
 import "reactflow/dist/style.css";
 
-const nodeTypes = {
-  trigger: TriggerNode,
-  action: ActionNode,
-  condition: ConditionNode,
+// Create wrapper components to handle the ReactFlow node props
+const TriggerNodeWrapper = (props: NodeProps) => (
+  <TriggerNode {...(props as any)} isValidConnection={() => true} />
+);
+const ActionNodeWrapper = (props: NodeProps) => (
+  <ActionNode {...(props as any)} isValidConnection={() => true} />
+);
+const ConditionNodeWrapper = (props: NodeProps) => (
+  <ConditionNode {...(props as any)} isValidConnection={() => true} />
+);
+
+const nodeTypes: NodeTypes = {
+  trigger: TriggerNodeWrapper,
+  action: ActionNodeWrapper,
+  condition: ConditionNodeWrapper,
 };
 
 export const WorkflowBuilder: React.FC = () => {
@@ -39,6 +55,14 @@ export const WorkflowBuilder: React.FC = () => {
     isDirty,
     validateWorkflow,
   } = useWorkflowState();
+
+  const handleNodeClick = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      // Cast the node to our WorkflowNode type
+      setSelectedNode(node as unknown as WorkflowNode);
+    },
+    [setSelectedNode]
+  );
 
   const handleSave = useCallback(async () => {
     if (!validateWorkflow()) {
@@ -89,10 +113,10 @@ export const WorkflowBuilder: React.FC = () => {
           <ReactFlow
             nodes={nodes}
             edges={edges}
-            onNodeChange={onNodeChange}
+            onNodesChange={onNodeChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
-            onNodeClick={(_, node) => setSelectedNode(node)}
+            onNodeClick={handleNodeClick}
             nodeTypes={nodeTypes}
             fitView
           >

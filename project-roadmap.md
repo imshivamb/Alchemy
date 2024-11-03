@@ -191,15 +191,6 @@ backend/
 - JWT (Authentication)
 - Swagger/ReDoc (API Docs)
 
-## Dependencies
-```plaintext
-django
-djangorestframework
-django-cors-headers
-drf-yasg
-fastapi
-redis
-psycopg2-binary
-python-jose[cryptography]
-```
+
+
 

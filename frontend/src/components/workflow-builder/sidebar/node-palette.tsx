@@ -1,8 +1,20 @@
+// components/workflow-builder/sidebar/NodePalette.tsx
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useWorkflowState } from "@/stores/workflow.store";
-import { NodeType, WorkflowNode } from "@/types/workflow.types";
 import {
+  ActionNode,
+  AIModelType,
+  HTTPConfig,
+  NodeType,
+  TriggerNode,
+  Web3ActionType,
+  Web3Network,
+  WorkflowNode,
+} from "@/types/workflow.types";
+import {
+  Brain, // Added for AI
   Clock,
   Coins,
   FileJson2,
@@ -13,8 +25,11 @@ import {
 } from "lucide-react";
 import React from "react";
 
+type TriggerType = "webhook" | "schedule" | "email";
+type ActionType = "ai" | "web3" | "http" | "transform";
+
 interface NodeTypeButton {
-  type: string;
+  type: TriggerType | ActionType | string;
   label: string;
   description: string;
   icon: React.ReactNode;
@@ -24,7 +39,7 @@ interface NodeTypeButton {
 
 const nodeTypes: NodeTypeButton[] = [
   {
-    type: "webhook",
+    type: "webhook" as TriggerType,
     category: "trigger",
     label: "Webhook",
     description: "Start workflow with HTTP webhook",
@@ -32,7 +47,7 @@ const nodeTypes: NodeTypeButton[] = [
     defaultConfig: { webhookUrl: "", method: "POST", headers: {} },
   },
   {
-    type: "schedule",
+    type: "schedule" as TriggerType,
     category: "trigger",
     label: "Schedule",
     description: "Time Based Trigger",
@@ -44,7 +59,7 @@ const nodeTypes: NodeTypeButton[] = [
     },
   },
   {
-    type: "email",
+    type: "email" as TriggerType,
     category: "trigger",
     label: "Email",
     description: "Trigger on Email Events",
@@ -52,7 +67,15 @@ const nodeTypes: NodeTypeButton[] = [
     defaultConfig: { filters: [], folders: [], includeAttachments: false },
   },
   {
-    type: "web3",
+    type: "ai" as ActionType,
+    category: "action",
+    label: "AI Process",
+    description: "Process with AI models",
+    icon: <Brain className="size-4" />,
+    defaultConfig: { model: "gpt-4", maxTokens: 150, temperature: 0.7 },
+  },
+  {
+    type: "web3" as ActionType,
     category: "action",
     label: "Web3",
     description: "Blockchain Interactions",
@@ -60,7 +83,7 @@ const nodeTypes: NodeTypeButton[] = [
     defaultConfig: { network: "solana-mainnet", actionType: "transfer" },
   },
   {
-    type: "http",
+    type: "http" as ActionType,
     category: "action",
     label: "HTTP Request",
     description: "Make HTTP Requests",
@@ -68,7 +91,7 @@ const nodeTypes: NodeTypeButton[] = [
     defaultConfig: { url: "", method: "GET", headers: {} },
   },
   {
-    type: "transform",
+    type: "transform" as ActionType,
     category: "action",
     label: "Transform",
     description: "Transform Data",
@@ -79,7 +102,7 @@ const nodeTypes: NodeTypeButton[] = [
     type: "condition",
     category: "condition",
     label: "Condition",
-    icon: <GitBranch className="h-4 w-4" />,
+    icon: <GitBranch className="size-4" />,
     description: "Add conditional logic",
     defaultConfig: {
       condition: { operator: "and", rules: [] },
@@ -92,21 +115,181 @@ const NodePalette = () => {
   const { addNode } = useWorkflowState();
 
   const handleAddNode = (nodeType: NodeTypeButton) => {
-    const newNode: Partial<WorkflowNode> = {
-      id: `${nodeType.category}-${Date.now()}`,
-      type: nodeType.category,
-      position: { x: 100, y: 100 },
-      data: {
-        nodeType: nodeType.type,
-        label: nodeType.label,
-        description: nodeType.description,
-        config: nodeType.defaultConfig,
-        isValid: true,
-      },
-    };
+    let newNode: Partial<WorkflowNode>;
+
+    switch (nodeType.category) {
+      case "trigger": {
+        const triggerConfig = {
+          webhook:
+            nodeType.type === "webhook"
+              ? {
+                  webhookUrl: "",
+                  method: "POST" as const,
+                  headers: {},
+                  authentication: {
+                    type: "none" as const,
+                  },
+                  retryConfig: {
+                    maxRetries: 3,
+                    retryInterval: 1000,
+                  },
+                }
+              : undefined,
+          schedule:
+            nodeType.type === "schedule"
+              ? {
+                  scheduleType: "cron" as const,
+                  cronExpression: "",
+                  timezone: "UTC",
+                  interval: {
+                    value: 5,
+                    unit: "minutes" as const,
+                  },
+                }
+              : undefined,
+          email:
+            nodeType.type === "email"
+              ? {
+                  filters: [],
+                  folders: [],
+                  includeAttachments: false,
+                  markAsRead: true,
+                }
+              : undefined,
+        };
+
+        newNode = {
+          id: `${nodeType.category}-${Date.now()}`,
+          type: "trigger",
+          position: { x: 100, y: 100 },
+          data: {
+            triggerType: nodeType.type as TriggerNode["data"]["triggerType"],
+            label: nodeType.label,
+            description: nodeType.description,
+            isValid: true,
+            config: triggerConfig,
+            outputSchema: {
+              type: "object",
+              properties: {},
+            },
+          },
+        };
+        break;
+      }
+
+      case "action": {
+        const actionConfig: ActionNode["data"]["config"] = {
+          ai: {
+            model: "gpt-4" as AIModelType,
+            temperature: 0.7,
+            maxTokens: 150,
+            prompt: "",
+            systemMessage: "",
+            outputFormat: "text" as const,
+            preprocessors: [],
+            fallbackBehavior: {
+              retryCount: 3,
+              fallbackModel: "gpt-3.5-turbo" as AIModelType,
+            },
+          },
+          web3: {
+            network: "solana-mainnet" as Web3Network,
+            actionType: "transfer" as Web3ActionType,
+            amount: "",
+            recipient: "",
+            token: {
+              mint: "",
+              decimals: 9,
+            },
+            gasConfig: {
+              priorityFee: 0,
+              maxFee: 0,
+            },
+          },
+          http: {
+            url: "",
+            method: "GET" as HTTPConfig["method"],
+            headers: {},
+            body: "",
+            authentication: {
+              type: "none" as const,
+              credentials: {},
+            },
+            retryConfig: {
+              maxRetries: 3,
+              retryInterval: 1000,
+            },
+            timeout: 30000,
+          },
+          transform: {
+            operations: [],
+            inputMapping: {},
+            outputMapping: {},
+            errorBehavior: "skip" as const,
+          },
+        };
+
+        newNode = {
+          id: `${nodeType.category}-${Date.now()}`,
+          type: "action",
+          position: { x: 100, y: 100 },
+          data: {
+            actionType: nodeType.type as ActionNode["data"]["actionType"],
+            label: nodeType.label,
+            description: nodeType.description,
+            isValid: true,
+            config: {
+              ...actionConfig,
+              [nodeType.type]: {
+                ...actionConfig[nodeType.type as keyof typeof actionConfig],
+                ...nodeType.defaultConfig,
+              },
+            },
+            inputSchema: {
+              type: "object",
+              properties: {},
+              required: [],
+            },
+            outputSchema: {
+              type: "object",
+              properties: {},
+            },
+          },
+        };
+        break;
+      }
+
+      case "condition": {
+        newNode = {
+          id: `${nodeType.category}-${Date.now()}`,
+          type: "condition",
+          position: { x: 100, y: 100 },
+          data: {
+            label: nodeType.label,
+            description: nodeType.description,
+            isValid: true,
+            config: {
+              condition: {
+                operator: "and",
+                rules: [],
+              },
+              defaultPath: "true",
+              customLogic: "",
+              timeout: 30000,
+            },
+            inputSchema: {
+              type: "object",
+              properties: {},
+              required: [],
+            },
+          },
+        };
+        break;
+      }
+    }
+
     addNode(newNode as WorkflowNode);
   };
-
   return (
     <Card className="h-full overflow-hidden">
       <CardHeader className="px-4 py-3">
