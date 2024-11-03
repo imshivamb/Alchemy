@@ -17,6 +17,7 @@ from .views import (
     GitHubLoginView,
     AdminUserViewSet,
     AdminTeamViewSet,
+    PasswordResetConfirmView,
     UserMeView
 )
 
@@ -46,6 +47,7 @@ urlpatterns = [
     
     # Password management
     path('password/reset/', PasswordResetView.as_view(), name='password_reset'),
+    path('password/reset/confirm/', PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     path('email/verify/', EmailVerificationView.as_view(), name='email_verify'),
     
     # User specific endpoints

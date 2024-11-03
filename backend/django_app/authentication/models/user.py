@@ -5,10 +5,14 @@ from .base import BaseModel
 from .security import LoginHistory
 from django.db import models
 from django.core.mail import send_mail
-from datetime import timezone
+from django.utils import timezone
 from datetime import timedelta
 import secrets
 from django.conf import settings
+import logging
+from ..models.activity import SecurityLog
+
+logger = logging.getLogger(__name__)
 
 phone_regex = RegexValidator(
     regex=r'^\+?1?\d{9,15}$',
@@ -208,12 +212,54 @@ class User(AbstractUser, BaseModel):
         
     def send_verification_email(self):
         """Send verification email to user"""
-        verification_url = f"{settings.FRONTEND_URL}/verify-email?token={self.email_verification_token}"
-        
-        send_mail(
-            subject='Verify your email address',
-            message=f'Click the following link to verify your email: {verification_url}',
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[self.email],
-            fail_silently=False
-        )
+        try:
+            verification_url = f"{settings.FRONTEND_URL}/email/verify/{self.email_verification_token}"
+            
+            email_subject = 'Verify your email address'
+            email_body = f"""
+            Hello {self.first_name},
+
+            Please verify your email address by clicking the link below:
+
+            {verification_url}
+
+            This link will expire in {settings.EMAIL_VERIFICATION_EXPIRY_HOURS} hours.
+
+            If you didn't create an account, you can safely ignore this email.
+            """
+
+            logger.info(f"Sending verification email to {self.email}")
+            logger.debug(f"Verification URL: {verification_url}")
+            
+            send_mail(
+                subject=email_subject,
+                message=email_body,
+                from_email=settings.DEFAULT_FROM_EMAIL or 'noreply@example.com',
+                recipient_list=[self.email],
+                fail_silently=False
+            )
+
+            logger.info(f"Verification email sent successfully to {self.email}")
+            
+            # Log success in security log
+            SecurityLog.objects.create(
+                user=self,
+                action='verification_email_sent',
+                details={
+                    'email': self.email,
+                    'verification_url': verification_url
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to send verification email to {self.email}: {str(e)}")
+            # Log failure in security log
+            SecurityLog.objects.create(
+                user=self,
+                action='verification_email_failed',
+                details={
+                    'email': self.email,
+                    'error': str(e)
+                }
+            )
+            raise

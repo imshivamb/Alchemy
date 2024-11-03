@@ -9,10 +9,11 @@ from django.core.mail import send_mail
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.conf import settings
-from django.utils.http import urlsafe_base64_encode
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.contrib.auth import get_user_model
 from django.utils.encoding import force_bytes
 from django.contrib.auth.tokens import default_token_generator
+from rest_framework.decorators import api_view
 from ..models.activity import SecurityLog, UserActivity
 from ..models.profile import UserProfile
 from rest_framework.views import APIView
@@ -21,7 +22,11 @@ from ..serializers.auth import (
     UserSerializer,
     PasswordResetSerializer,
     EmailVerificationSerializer,
-    RegisterSerializer
+    PasswordResetConfirmSerializer,
+    RegisterSerializer,
+    EmailVerificationResponseSerializer,
+    ResendVerificationSerializer,
+    VerificationStatusSerializer
 )
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
@@ -101,6 +106,9 @@ class RegisterView(generics.CreateAPIView):
             try:
                 # Create user
                 user = serializer.save()
+                # Generate and send verification email
+                user.generate_verification_token()
+                user.send_verification_email()
                 
                 # Log registration
                 SecurityLog.objects.create(
@@ -177,7 +185,15 @@ class LoginView(TokenObtainPairView):
         elif 'tablet' in user_agent:
             return 'tablet'
         return 'desktop'
-
+    @api_view(['POST', 'OPTIONS'])
+    def login_view(request):
+        if request.method == 'OPTIONS':
+            response = Response()
+            response["Access-Control-Allow-Origin"] = "http://localhost:3000"
+            response["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+            response["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+            response["Access-Control-Allow-Credentials"] = "true"
+            return response
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
 
@@ -346,16 +362,7 @@ class EmailVerificationView(APIView):
         responses={
             200: openapi.Response(
                 description="Email verified successfully",
-                examples={
-                    "application/json": {
-                        "detail": "Email verified successfully",
-                        "user": {
-                            "id": "uuid",
-                            "email": "user@example.com",
-                            "is_verified": True
-                        }
-                    }
-                }
+                schema=EmailVerificationResponseSerializer
             ),
             400: openapi.Response(
                 description="Invalid token",
@@ -396,18 +403,13 @@ class EmailVerificationView(APIView):
                     action='email_verified',
                     details={
                         'verification_method': 'token',
-                        'email': user.email
+                        'email': user.email,
+                        'ip_address': request.META.get('REMOTE_ADDR'),
+                        'user_agent': request.META.get('HTTP_USER_AGENT', '')
                     }
                 )
-                
-                return Response({
-                    'detail': 'Email verified successfully',
-                    'user': {
-                        'id': str(user.id),
-                        'email': user.email,
-                        'is_verified': user.is_verified
-                    }
-                })
+                response_serializer = EmailVerificationResponseSerializer(user)
+                return Response(response_serializer.data)
                 
             except User.DoesNotExist:
                 # Log failed attempt
@@ -415,7 +417,8 @@ class EmailVerificationView(APIView):
                     action='email_verification_failed',
                     details={
                         'reason': 'invalid_token',
-                        'token': token
+                        'token': token,
+                        'ip_address': request.META.get('REMOTE_ADDR')
                     }
                 )
                 raise ValidationError('Invalid verification token')
@@ -434,17 +437,7 @@ class EmailVerificationView(APIView):
 
     @swagger_auto_schema(
         operation_description="Resend email verification token",
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            required=['email'],
-            properties={
-                'email': openapi.Schema(
-                    type=openapi.TYPE_STRING,
-                    format='email',
-                    description='User email address'
-                )
-            }
-        ),
+        request_body=ResendVerificationSerializer,
         responses={
             200: openapi.Response(
                 description="Verification email sent",
@@ -460,36 +453,31 @@ class EmailVerificationView(APIView):
     )
     def put(self, request):
         """Resend verification email"""
-        email = request.data.get('email')
+        serializer = ResendVerificationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        email = serializer.validated_data['email']
         
         try:
             user = User.objects.get(email=email, is_verified=False)
             
             # Check if we can send a new verification email
-            if user.can_send_verification_email():
-                # Generate and send new verification token
-                user.generate_verification_token()
-                user.send_verification_email()
+            # Generate and send new verification token
+            user.generate_verification_token()
+            user.send_verification_email()
+            
+            SecurityLog.objects.create(
+                user=user,
+                action='verification_email_resent',
+                details={
+                    'email': email,
+                    'ip_address': request.META.get('REMOTE_ADDR')
+                }
+            )
                 
-                # Log resend attempt
-                SecurityLog.objects.create(
-                    user=user,
-                    action='verification_email_resent',
-                    details={
-                        'email': email
-                    }
-                )
-                
-                return Response({
+            return Response({
                     'detail': 'Verification email sent successfully'
-                })
-            else:
-                return Response(
-                    {
-                        'detail': 'Please wait before requesting another verification email'
-                    },
-                    status=status.HTTP_429_TOO_MANY_REQUESTS
-                )
+            })
                 
         except User.DoesNotExist:
             # Don't reveal if email exists
@@ -500,5 +488,129 @@ class EmailVerificationView(APIView):
         except Exception as e:
             return Response(
                 {'detail': 'Failed to send verification email'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    @swagger_auto_schema(
+        operation_description="Check email verification status",
+        manual_parameters=[
+            openapi.Parameter(
+                'email',
+                openapi.IN_QUERY,
+                description="Email address to check verification status",
+                type=openapi.TYPE_STRING,
+                format='email'
+            )
+        ],
+        responses={
+            200: VerificationStatusSerializer
+        }
+    )
+    
+    def get(self, request):
+        """Check Verification Status of the email address"""
+        email = request.query_params.get('email')
+        
+        if not email:
+            return Response(
+                {'detail': 'Email address is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            user = User.objects.get(email=email)
+            serializer = VerificationStatusSerializer(user)
+            return Response(serializer.data)
+        except User.DoesNotExist:
+            return Response(
+                {'detail': 'Email not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+            
+class PasswordResetConfirmView(APIView):
+    permission_classes = [AllowAny]
+    serializer_class = PasswordResetConfirmSerializer
+    throttle_classes = [AnonRateThrottle]
+
+    @swagger_auto_schema(
+        operation_description="Confirm password reset with token and new password",
+        request_body=PasswordResetConfirmSerializer,
+        responses={
+            200: openapi.Response(
+                description="Password reset successful",
+                examples={
+                    "application/json": {
+                        "detail": "Password has been reset successfully"
+                    }
+                }
+            ),
+            400: openapi.Response(
+                description="Invalid input",
+                examples={
+                    "application/json": {
+                        "detail": "Invalid or expired reset token"
+                    }
+                }
+            ),
+            429: "Too many reset attempts"
+        }
+    )
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        
+        try:
+            serializer.is_valid(raise_exception=True)
+            token = serializer.validated_data['token']
+            password = serializer.validated_data['password']
+            
+            # Extract user ID from the token
+            try:
+                uid = urlsafe_base64_decode(token.split('-')[0]).decode()
+                user = User.objects.get(pk=uid)
+            except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+                raise ValidationError('Invalid reset token')
+                
+            # Verify token
+            if not default_token_generator.check_token(user, token.split('-')[1]):
+                # Log failed attempt
+                SecurityLog.objects.create(
+                    user=user,
+                    action='password_reset_failed',
+                    details={
+                        'reason': 'invalid_token',
+                        'ip_address': request.META.get('REMOTE_ADDR')
+                    }
+                )
+                raise ValidationError('Reset token has expired')
+                
+            # Set new password
+            user.set_password(password)
+            user.save()
+            
+            # Invalidate all existing sessions
+            user.session_set.all().delete()
+            
+            # Log successful password reset
+            SecurityLog.objects.create(
+                user=user,
+                action='password_reset_successful',
+                details={
+                    'ip_address': request.META.get('REMOTE_ADDR'),
+                    'user_agent': request.META.get('HTTP_USER_AGENT', '')
+                }
+            )
+            
+            return Response({
+                'detail': 'Password has been reset successfully'
+            })
+            
+        except ValidationError as e:
+            return Response(
+                {'detail': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        except Exception as e:
+            return Response(
+                {'detail': 'An error occurred during password reset'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

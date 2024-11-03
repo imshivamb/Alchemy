@@ -32,10 +32,42 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
 #Hosts allowed to access the application
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
+ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
 
+# CORS settings
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:3000", 
+# ]
 
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # Your Next.js frontend
+]
+
+FRONTEND_URL = "http://localhost:3000"
+
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
 # Application definition
 
 INSTALLED_APPS = [
@@ -103,12 +135,38 @@ DEFAULT_WORKFLOW_LIMIT = 10
 
 # Email Configuration
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # For development
-DEFAULT_FROM_EMAIL = 'noreply@aizapier.com'
+# DEFAULT_FROM_EMAIL = 'noreply@aizapier.com'
 # Email verification settings
 EMAIL_VERIFICATION_EXPIRY_HOURS = 24  # Token expires after 24 hours
 EMAIL_VERIFICATION_COOLDOWN_MINUTES = 5  # Wait 5 minutes between resend attempts
 
-
+# Add logging configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        '': {  # Root logger
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        },
+        'django.db.backends': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+    },
+}
 # API Documentation settings
 SWAGGER_SETTINGS = {
     'SECURITY_DEFINITIONS': {
@@ -199,6 +257,7 @@ SOCIAL_AUTH_PIPELINE = (
 # Middleware - software that processes requests/response
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    'corsheaders.middleware.CorsMiddleware',
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",

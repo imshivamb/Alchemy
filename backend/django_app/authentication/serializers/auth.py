@@ -2,11 +2,13 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from django.utils import timezone
 from django.db import transaction
 from .base import TimestampedSerializer
 from django.contrib.auth import authenticate
 from dj_rest_auth.registration.serializers import RegisterSerializer as DefaultRegisterSerializer
 from .profile import UserProfileSerializer
+from datetime import timedelta
 
 User = get_user_model()
 
@@ -211,4 +213,62 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
         return attrs
 
 class EmailVerificationSerializer(serializers.Serializer):
-    token = serializers.CharField(required=True)
+    token = serializers.CharField(required=True, 
+            help_text='Email verification token')
+    
+    def validate_token(self, value):
+        """ verify the verification token and expiration"""
+        if not value or len(value) <= 32:
+            raise serializers.ValidationError(
+                "Invalid verification token"
+            )
+        return value
+    
+class ResendVerificationSerializer(serializers.Serializer):
+    email = serializers.EmailField(required=True,
+            help_text='Email address to resend verification to'
+        )
+    def validate_email(self, value):
+        """
+        Validate email exists and verification status
+        """
+        try:
+            user = User.objects.get(email=value)
+            
+            # Checking if already verified
+            if user.is_verified:
+                raise serializers.ValidationError(
+                    "User is already verified."
+                )
+            #Checking rate limiting for resend
+            if hasattr(user, 'email_verfication_sent_at') and user.email_verfication_sent_at:
+                cooldown_period = timedelta(minutes=5)
+                time_elapsed = timezone.now() - user.email_verfication_sent_at
+                
+                if time_elapsed < cooldown_period:
+                    minutes_remaining = int((cooldown_period - time_elapsed).total_seconds() / 60)
+                    raise serializers.ValidationError(
+                        f'Please wait {minutes_remaining} minutes before requesting another verification email'
+                    )
+        except User.DoesNotExist:
+            # Don't reveal if email exists
+            pass
+            
+        return value
+    
+    class Meta:
+        fields = ('email',)
+        
+class EmailVerificationResponseSerializer(serializers.ModelSerializer):
+    """Serializer for verification response data"""
+    class Meta:
+        model = User
+        fields = ('id', 'email', 'is_verified')
+        read_only_fields = fields
+
+class VerificationStatusSerializer(serializers.ModelSerializer):
+    """Serializer for checking verification status"""
+    class Meta:
+        model = User
+        fields = ('email', 'is_verified')
+        read_only_fields = fields
