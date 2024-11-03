@@ -137,7 +137,7 @@ export interface Web3Config {
     wallet?: string;
     amount?: string;
     recipient?: string;
-    token?: {
+    token: {
       mint: string;
       decimals: number;
     };
@@ -153,13 +153,13 @@ export interface Web3Config {
 export interface HTTPConfig {
     url: string;
     method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
-    headers?: Record<string, string>;
-    body?: string | Record<string, any>;
-    authentication?: {
+    headers: Record<string, string>;
+    body: string | Record<string, any>;
+    authentication: {
       type: 'none' | 'basic' | 'bearer' | 'api-key';
       credentials?: Record<string, string>;
     };
-    retryConfig?: {
+    retryConfig: {
       maxRetries: number;
       retryInterval: number;
     };
@@ -186,10 +186,10 @@ export interface ActionNode extends BaseNode {
       isValid: boolean;
       errorMessage?: string;
       config: {
-        ai?: AIConfig;
-        web3?: Web3Config;
-        http?: HTTPConfig;
-        transform?: DataTransformConfig;
+        ai: AIConfig;
+        web3: Web3Config;
+        http: HTTPConfig;
+        transform: DataTransformConfig;
       };
       inputSchema: {
         type: 'object';

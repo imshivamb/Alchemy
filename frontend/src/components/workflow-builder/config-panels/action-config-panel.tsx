@@ -3,6 +3,10 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ActionNode } from "@/types/workflow.types";
 import React from "react";
+import AIConfig from "./action/ai-config";
+import { Web3Config } from "./action/web3-config";
+import { HTTPConfig } from "./action/http-config";
+import { TransformConfig } from "./action/transform-config";
 
 type ActionConfigProps = {
   data: ActionNode["data"];
@@ -10,6 +14,12 @@ type ActionConfigProps = {
 };
 
 const ActionConfig = ({ data, onChange }: ActionConfigProps) => {
+  const handleValidationChange = (isValid: boolean) => {
+    onChange({
+      ...data,
+      isValid,
+    });
+  };
   return (
     <div className="space-y-4 p-4">
       {/* Basic Information */}
@@ -44,7 +54,51 @@ const ActionConfig = ({ data, onChange }: ActionConfigProps) => {
         </TabsList>
 
         <TabsContent value="ai">
-          <AIConfig></AIConfig>
+          <AIConfig
+            config={data.config.ai}
+            onChange={(aiConfig) =>
+              onChange({
+                ...data,
+                config: { ...data.config, ai: aiConfig },
+              })
+            }
+          />
+        </TabsContent>
+        <TabsContent value="web3">
+          <Web3Config
+            config={data.config.web3}
+            onChange={(web3Config) =>
+              onChange({
+                ...data,
+                config: { ...data.config, web3: web3Config },
+              })
+            }
+          />
+        </TabsContent>
+
+        <TabsContent value="http">
+          <HTTPConfig
+            config={data.config.http}
+            onChange={(httpConfig) =>
+              onChange({
+                ...data,
+                config: { ...data.config, http: httpConfig },
+              })
+            }
+          />
+        </TabsContent>
+
+        <TabsContent value="transform">
+          <TransformConfig
+            onValidationChange={handleValidationChange}
+            config={data.config.transform}
+            onChange={(transformConfig) =>
+              onChange({
+                ...data,
+                config: { ...data.config, transform: transformConfig },
+              })
+            }
+          />
         </TabsContent>
       </Tabs>
     </div>
