@@ -7,7 +7,7 @@ const API_BASE_URL =  process.env.NEXT_PUBLIC_API_BASE_URL || '';
 export class AuthService {
     static async register(data: RegisterData): Promise<User> {
         try {
-            const response: AxiosResponse<User> = await axiosInstance.post(`${API_BASE_URL}/register`, data, {
+            const response: AxiosResponse<User> = await axiosInstance.post(`${API_BASE_URL}/auth/register`, data, {
                 headers: {
                     "Content-Type": "application/json",
                 }
@@ -24,7 +24,7 @@ export class AuthService {
 
     static async login(data: LoginData): Promise<AuthResponse> {
         try {
-            const response: AxiosResponse = await axiosInstance.post(`${API_BASE_URL}/login`, data);
+            const response: AxiosResponse = await axiosInstance.post(`${API_BASE_URL}/auth/login`, data);
 
             const authResponse: AuthResponse = {
                 tokens: {
@@ -51,7 +51,7 @@ export class AuthService {
 
     static async logout(refreshToken: string): Promise<void> {
         try {
-            await axiosInstance.post(`${API_BASE_URL}/logout`, { refreshToken }, {
+            await axiosInstance.post(`${API_BASE_URL}/auth/logout`, { refreshToken }, {
                 headers: {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${localStorage.getItem('refreshToken')}`
@@ -70,7 +70,7 @@ export class AuthService {
 
     static async getCurrentUser(): Promise<User> {
         try {
-            const response: AxiosResponse<User> = await axiosInstance.get(`${API_BASE_URL}/me`, {
+            const response: AxiosResponse<User> = await axiosInstance.get(`${API_BASE_URL}/auth/me`, {
                 headers: {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${localStorage.getItem('accessToken')}`
@@ -87,7 +87,7 @@ export class AuthService {
 
     static async refreshToken(refreshToken: string): Promise<{access: string}> {
         try {
-            const response: AxiosResponse<{access: string}> = await axiosInstance.post(`${API_BASE_URL}/refresh`, { refreshToken }, {
+            const response: AxiosResponse<{access: string}> = await axiosInstance.post(`${API_BASE_URL}/auth/refresh`, { refreshToken }, {
                 headers: {
                     'Content-Type': 'application/json'
                 }
@@ -103,7 +103,7 @@ export class AuthService {
 
     static async requestPasswordReset(email: string): Promise<void> {
         try {
-             await axiosInstance.post(`${API_BASE_URL}/password/reset`, { email }, {
+             await axiosInstance.post(`${API_BASE_URL}/auth/password/reset`, { email }, {
                 headers: {
                     "Content-Type": "application/json",
                 }
@@ -118,7 +118,7 @@ export class AuthService {
 
     static async resetPasswordConfirm(data: PasswordResetConfirmData): Promise<void> {
         try {
-            await axiosInstance.post(`${API_BASE_URL}/password/reset/confirm`, data, {
+            await axiosInstance.post(`${API_BASE_URL}/auth/password/reset/confirm`, data, {
                 headers: {
                     "Content-Type": "application/json",
                 }
@@ -134,7 +134,7 @@ export class AuthService {
 
     static async verifyEmail(token: string): Promise<void> {
         try {
-            await axiosInstance.post(`${API_BASE_URL}/email/verify`, { token }, {
+            await axiosInstance.post(`${API_BASE_URL}/auth/email/verify`, { token }, {
                 headers: {
                     'Content-Type': 'application/json'
                 }
@@ -149,7 +149,7 @@ export class AuthService {
 
     static async resendVerificationEmail(email: string): Promise<void> {
         try {
-            await axiosInstance.put(`${API_BASE_URL}/email/verify`, { email }, {
+            await axiosInstance.put(`${API_BASE_URL}/auth/email/verify`, { email }, {
                 headers: {
                     "Content-Type": "application/json",
                 }
@@ -164,7 +164,7 @@ export class AuthService {
     static async checkEmailVerificationStatus(email: string): Promise<EmailVerificationStatus> {
         try {
             const response: AxiosResponse<EmailVerificationStatus> = 
-                await axiosInstance.get(`${API_BASE_URL}/email/verify?email=${encodeURIComponent(email)}`);
+                await axiosInstance.get(`${API_BASE_URL}/auth/email/verify?email=${encodeURIComponent(email)}`);
             return response.data;
         } catch (error: unknown) {
             if (axios.isAxiosError(error)) {

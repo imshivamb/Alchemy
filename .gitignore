@@ -71,3 +71,8 @@ htmlcov/
 # System Files
 .DS_Store
 Thumbs.db
+
+mvp-structure.md
+postmvp.md
+
+plans/
