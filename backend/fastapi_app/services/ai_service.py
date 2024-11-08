@@ -145,6 +145,59 @@ class AIService(BaseRedis):
                 error=error
             )
     
+    async def retry_task(self, task_id: str):
+        """Retry a failed AI task"""
+        task_data = await self.get_task_status(task_id)
+        if task_data["status"] != "failed":
+            raise ValueError("Only failed tasks can be retried")
+            
+        await self.update_task_status(task_id, status="pending")
+        await self.process_task(task_id)
+        
+    async def cancel_task(self, task_id: str):
+        """Cancel an ongoing AI task"""
+        task_data = await self.get_task_status(task_id)
+        if task_data["status"] not in ["pending", "processing"]:
+            raise ValueError("Only pending or processing tasks can be cancelled")
+            
+        await self.update_task_status(
+            task_id, 
+            status="cancelled",
+            error="Task cancelled by user"
+        )
+        
+    async def list_tasks(
+        self,
+        user_id: str,
+        workflow_id: Optional[str] = None,
+        status: Optional[str] = None,
+        limit: int = 10,
+        offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """List AI tasks with optional filtering"""
+
+        task_keys = await self.scan_keys(f"{self.task_prefix}*")
+        tasks = []
+        
+
+        for key in task_keys:
+            task_data = await self.get_data(key)
+            if task_data:
+                # Apply filters
+                if task_data["user_id"] != user_id:
+                    continue
+                if workflow_id and task_data["workflow_id"] != workflow_id:
+                    continue
+                if status and task_data["status"] != status:
+                    continue
+                    
+                tasks.append(task_data)
+                
+        # Sort by created_at descending
+        tasks.sort(key=lambda x: x["created_at"], reverse=True)
+        
+        # Apply pagination
+        return tasks[offset:offset + limit]
 
     async def create_task(
         self,

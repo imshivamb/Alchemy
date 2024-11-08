@@ -31,15 +31,33 @@ class AIConfig(BaseModel):
     output_format: OutputFormat = OutputFormat.TEXT
     fallback_behavior: Optional[Dict[str, Any]] = None
     
-# class AIResponse(BaseModel):
-#     task_id: str
-#     status: str
-#     result: Optional[Dict[str, Any]] = None
-#     error: Optional[str] = None
-#     created_at: datetime
-#     completed_at: Optional[datetime] = None
-#     usage: Optional[Dict[str, Any]] = None
+class AIRequest(BaseModel):
+    workflow_id: str
+    input_data: Dict[Any, Any]
+    model: AIModelType = Field(default=AIModelType.GPT35_TURBO)
+    max_tokens: int = Field(default=150, gt=0, le=8192)
+    temperature: float = Field(default=0.7, ge=0, le=1)
+    preprocessors: Optional[List[Dict[str, Any]]] = None
+    output_format: OutputFormat = Field(default=OutputFormat.TEXT)
+    system_message: Optional[str] = None
+    fallback_behavior: Optional[Dict[str, Any]] = None
     
+class AIBatchRequest(BaseModel):
+    requests: List[AIRequest]
+    sequential: bool = Field(default=True)
+    
+class AIResponse(BaseModel):
+    task_id: str
+    status: str
+    message: str
+    
+class AIModelInfo(BaseModel):
+    id: str
+    name: str
+    max_tokens: int
+    supports_functions: bool
+    cost_per_token: float
+    recommended_uses: List[str]
     
 
     
