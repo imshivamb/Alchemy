@@ -7,11 +7,15 @@ import hmac
 import hashlib
 import logging
 from redis_service.base import BaseRedis
+from ..webhook_monitoring import WebhookMonitoring
+from ..types.webhook_types import WebhookConfig, WebhookSecret, RetryStrategy, WebhookStatus, WebhookMethod
 
 class WebhookService(BaseRedis):
     def __init__(self):
         super().__init__()
-        self.webhook_prefix = "webhook_task:"
+        self.webhook_prefix = "webhook:"
+        self.delivery_prefix = "webhook_delivery:"
+        self.monitoring = WebhookMonitoring()
         logging.basicConfig(level=logging.INFO)
         self.setup_webhook_monitoring()
 
