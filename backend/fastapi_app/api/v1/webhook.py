@@ -1,118 +1,208 @@
-from fastapi import APIRouter, HTTPException, Request, BackgroundTasks, Depends
-from starlette.status import HTTP_404_NOT_FOUND, HTTP_500_INTERNAL_SERVER_ERROR
-from ...services.webhook.webhook_service import WebhookService
-from typing import Dict, Any
-import logging
-from ...core.auth import get_current_user
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Query, Body
+from typing import List, Optional, Dict, Any
+from datetime import datetime
+from pydantic import BaseModel
+from ...types.webhook_types import *
+from services.webhook.webhook_service import WebhookService
+from core.auth import get_current_user
 
 router = APIRouter()
+webhook_service = WebhookService()
 
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+class WebhookCreateRequest(BaseModel):
+    name: str
+    config: WebhookConfig
+    workflow_id: str
 
-async def get_webhook_service() -> WebhookService:
-    """Dependency to get an instance of WebhookService"""
-    return WebhookService()
+class WebhookResponse(BaseModel):
+    id: str
+    name: str
+    config: WebhookConfig
+    status: WebhookStatus
+    created_at: datetime
+    secret: WebhookSecret
+    workflow_id: str
+    user_id: str
+    last_triggered: Optional[datetime]
+    total_deliveries: int
+    successful_deliveries: int 
+    failed_deliveries: int
 
-@router.post("/{webhook_id}")
-async def handle_webhook(
+class WebhookDeliveryResponse(BaseModel):
+    id: str
+    webhook_id: str
+    payload: Dict[str, Any]
+    status: str
+    headers: Dict[str, str]
+    created_at: datetime
+    completed_at: Optional[datetime]
+    attempts: int
+    next_retry: Optional[datetime]
+    response: Optional[Dict[str, Any]]
+    error: Optional[str]
+
+@router.post("/webhooks", response_model=WebhookResponse, status_code=201)
+async def create_webhook(
+    request: WebhookCreateRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Create a new webhook"""
+    try:
+        webhook = await webhook_service.register_webhook(
+            name=request.name,
+            config=request.config,
+            workflow_id=request.workflow_id,
+            user_id=current_user["user_id"]
+        )
+        return webhook
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/webhooks", response_model=List[WebhookResponse])
+async def list_webhooks(
+    workflow_id: Optional[str] = None,
+    status: Optional[WebhookStatus] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """List webhooks"""
+    try:
+        return await webhook_service.list_webhooks(
+            user_id=current_user["user_id"],
+            workflow_id=workflow_id,
+            status=status
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/webhooks/{webhook_id}", response_model=WebhookResponse)
+async def get_webhook(
     webhook_id: str,
-    request: Request,
-    background_tasks: BackgroundTasks,
-    webhook_service: WebhookService = Depends(get_webhook_service),
     current_user: dict = Depends(get_current_user)
 ):
-    """
-    Handle incoming webhooks and trigger workflows
-    """
+    """Get webhook details"""
     try:
-        # Get request details
-        headers = dict(request.headers)
-        body = await request.body()
-        
-        # Check webhook ownership
         webhook = await webhook_service.get_webhook(webhook_id)
-        if webhook['user_id'] != current_user.get('user_id'):
-            raise HTTPException(
-                status_code=403,
-                detail="Not authorized to access this webhook"
-            )
-
-        # Create a webhook processing task in Redis
-        task_id = await webhook_service.create_task(webhook_id, headers, body, user_id=current_user.get('user_id'))
-
-        # Add webhook processing to background tasks
-        background_tasks.add_task(webhook_service.process_webhook, task_id)
-
-        # Log received webhook
-        logger.info(f"Webhook received: task_id={task_id}, webhook_id={webhook_id}")
-
-        return {
-            "task_id": task_id,
-            "status": "processing",
-            "message": "Webhook received and processing started"
-        }
-
+        if not webhook:
+            raise HTTPException(status_code=404, detail="Webhook not found")
+        if webhook["user_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Not authorized")
+        return webhook
+    except HTTPException as e:
+        raise e
     except Exception as e:
-        logger.error(f"Failed to handle webhook {webhook_id}: {e}")
-        raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to process webhook")
+        raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/status/{task_id}")
-async def get_webhook_status(
-    task_id: str,
-    webhook_service: WebhookService = Depends(get_webhook_service),
+@router.post("/webhooks/{webhook_id}/trigger", response_model=Dict[str, str])
+async def trigger_webhook(
+    webhook_id: str,
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user),
+    payload: Dict[str, Any] = Body(...)
+):
+    """Manually trigger a webhook"""
+    try:
+        webhook = await webhook_service.get_webhook(webhook_id)
+        if not webhook:
+            raise HTTPException(status_code=404, detail="Webhook not found")
+        if webhook["user_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Not authorized")
+            
+        delivery_id = await webhook_service.trigger_webhook(
+            webhook_id=webhook_id,
+            payload=payload
+        )
+        return {
+            "delivery_id": delivery_id,
+            "status": "processing",
+            "message": "Webhook triggered successfully"
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/webhooks/{webhook_id}/deliveries", response_model=List[WebhookDeliveryResponse])
+async def list_deliveries(
+    webhook_id: str,
+    status: Optional[str] = None,
+    limit: int = Query(default=10, le=100, gt=0),
+    offset: int = Query(default=0, ge=0),
     current_user: dict = Depends(get_current_user)
 ):
-    """
-    Get the processing status of a webhook task
-    """
+    """List webhook deliveries"""
     try:
-        # Fetch task status from the service
-        status = await webhook_service.get_task_status(task_id)
-
-        # Log status retrieval
-        logger.info(f"Fetched status for task_id={task_id}: {status['status']}")
-
-        if status['user_id'] != current_user.get('user_id'):
-            raise HTTPException(
-                status_code=403,
-                detail="Not authorized to view this status"
-            )
-        return status
-
+        webhook = await webhook_service.get_webhook(webhook_id)
+        if not webhook:
+            raise HTTPException(status_code=404, detail="Webhook not found")
+        if webhook["user_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Not authorized")
+            
+        return await webhook_service.list_deliveries(
+            webhook_id=webhook_id,
+            status=status,
+            limit=limit,
+            offset=offset
+        )
+    except HTTPException as e:
+        raise e
     except Exception as e:
-        logger.warning(f"Task {task_id} not found: {e}")
-        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail=f"Task {task_id} not found")
+        raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/{task_id}/retry")
-async def retry_webhook(
-    task_id: str,
-    background_tasks: BackgroundTasks,
-    webhook_service: WebhookService = Depends(get_webhook_service)
+@router.get("/deliveries/{delivery_id}", response_model=WebhookDeliveryResponse)
+async def get_delivery(
+    delivery_id: str,
+    current_user: dict = Depends(get_current_user)
 ):
-    """Retry a failed webhook task"""
+    """Get delivery details"""
     try:
-        # Check if task is eligible for retry and reset its status
-        await webhook_service.retry_failed_task(task_id)
-
-        # Add the retry task to background processing
-        background_tasks.add_task(webhook_service.process_webhook, task_id)
-
-        # Log retry initiation
-        logger.info(f"Retry initiated for task_id={task_id}")
-
-        return {
-            "message": "Webhook retry initiated",
-            "task_id": task_id
-        }
-
-    except ValueError as e:
-        # Handle specific error if the task is not in a failed state
-        logger.warning(f"Retry failed for task_id={task_id}: {e}")
-        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail=str(e))
-
+        delivery = await webhook_service.get_delivery(delivery_id)
+        if not delivery:
+            raise HTTPException(status_code=404, detail="Delivery not found")
+            
+        webhook = await webhook_service.get_webhook(delivery["webhook_id"])
+        if not webhook:
+            raise HTTPException(status_code=404, detail="Associated webhook not found")
+        
+        if webhook["user_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Not authorized")
+            
+        return delivery
+    except HTTPException as e:
+        raise e
     except Exception as e:
-        # Handle any other processing error
-        logger.error(f"Error retrying task {task_id}: {e}")
-        raise HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retry webhook")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/deliveries/{delivery_id}/retry", response_model=Dict[str, str])
+async def retry_delivery(
+    delivery_id: str,
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user)
+):
+    """Retry a failed delivery"""
+    try:
+        delivery = await webhook_service.get_delivery(delivery_id)
+        if not delivery:
+            raise HTTPException(status_code=404, detail="Delivery not found")
+            
+        webhook = await webhook_service.get_webhook(delivery["webhook_id"])
+        if not webhook:
+            raise HTTPException(status_code=404, detail="Associated webhook not found")
+        
+        if webhook["user_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Not authorized")
+            
+        if delivery["status"] != "failed":
+            raise HTTPException(
+                status_code=400,
+                detail="Only failed deliveries can be retried"
+            )
+            
+        await webhook_service.retry_delivery(delivery_id)
+        return {
+            "message": "Delivery retry initiated",
+            "delivery_id": delivery_id
+        }
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

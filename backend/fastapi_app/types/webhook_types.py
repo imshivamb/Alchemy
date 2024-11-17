@@ -14,6 +14,7 @@ class WebhookStatus(str, Enum):
     INACTIVE = 'inactive'
     FAILED = 'failed'
     DELETED = 'deleted'
+    PENDING = 'pending'
     
 class RetryStrategy(BaseModel):
     max_retries: int = Field(default=3, ge=0)

@@ -1,10 +1,12 @@
-from typing import Dict, Any
+from typing import Dict, Any, Optional, Tuple, Union
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 import httpx
 import json
 import hmac
 import hashlib
+import asyncio
+import os
 import logging
 from redis_service.base import BaseRedis
 from ..webhook_monitoring import WebhookMonitoring
@@ -15,179 +17,243 @@ class WebhookService(BaseRedis):
         super().__init__()
         self.webhook_prefix = "webhook:"
         self.delivery_prefix = "webhook_delivery:"
-        self.monitoring = WebhookMonitoring()
-        logging.basicConfig(level=logging.INFO)
-        self.setup_webhook_monitoring()
-
-    async def create_task(self, webhook_id: str, headers: Dict, body: bytes) -> str:
-        """Create a new webhook processing task in Redis with a 24-hour TTL."""
-        task_id = str(uuid.uuid4())
-        task_data = {
-            "webhook_id": webhook_id,
-            "status": "pending",
+        
+    async def register_webhook(
+        self,
+        name: str,
+        config: WebhookConfig,
+        workflow_id: str,
+        user_id: str
+    ) -> Dict[str, Any]:
+        """Register a newwebhook"""
+        webhook_id = f"wh-{datetime.utcnow().timestamp()}"
+        secret = WebhookSecret(
+            key=self._generate_secret(),
+            header_name="X-Webhook-Signature",
+            hash_algorithm="sha256"
+        )
+        
+        webhook_data = {
+            "id": webhook_id,
+            "name": name,
+            "config": config.dict(),
+            "secret": secret.dict(),
+            "workflow_id": workflow_id,
+            "user_id": user_id,
             "created_at": datetime.utcnow().isoformat(),
-            "headers": headers,
-            "body": body.decode(),
-            "result": None,
-            "error": None
+            "status": WebhookStatus.ACTIVE,
+            "last_triggered": None,
+            "total_deliveries": 0,
+            "successful_deliveries": 0,
+            "failed_deliveries": 0,
         }
-        await self.set_data(f"{self.webhook_prefix}{task_id}", task_data, expires=86400)
-        logging.info(f"Task {task_id} created with status 'pending'")
-        return task_id
+        
+        await self.get_data(
+            f"{self.webhook_prefix}{webhook_id}",
+            webhook_data
+        )
+        
+        return webhook_data
 
-    async def setup_webhook_monitoring(self):
-        """Setup webhook monitoring"""
-        await self.subscribe('webhook_events', self.handle_webhook_event)
-
-    async def handle_webhook_event(self, event_data: dict):
-        """Handle webhook events"""
-        current_metrics = await self.get_data('webhook_metrics') or {
-            'total_received': 0,
-            'successful': 0,
-            'failed': 0
+    async def trigger_webhook(
+        self,
+        webhook_id: str,
+        payload: Dict[str, Any],
+        headers: Optional[Dict[str, str]] = None
+    ) -> str:
+        """Trigger a webhook"""
+        webhook = await self.get_webhook(webhook_id)
+        if not webhook:
+            raise ValueError(f"Webhook with id {webhook_id} not found")
+        
+        delivery_id = f"whd_{datetime.utcnow().timestamp()}"
+        
+        delivery_data = {
+            "id": delivery_id,
+            "webhook_id": webhook_id,
+            "payload": payload,
+            "status": WebhookStatus.PENDING,
+            "headers": headers or {},
+            "created_at": datetime.utcnow().isoformat(),
+            "attempts": 0,
+            "next_retry": None,
+            "response": None,
+            "error": None,
         }
+        
+        await self.set_data(
+            f"{self.delivery_prefix}{delivery_id}",
+            delivery_data,
+            expires=86400
+        )
+        
+        asyncio.create_task(self.process_delivery(delivery_id))
+        
+        return delivery_id
 
-        event_type = event_data.get('type')
-        if event_type == 'received':
-            current_metrics['total_received'] += 1
-        elif event_type == 'completed':
-            current_metrics['successful'] += 1
-        elif event_type == 'failed':
-            current_metrics['failed'] += 1
-
-        await self.cache_data('webhook_metrics', current_metrics)
-
-    async def process_webhook(self, task_id: str):
-        """Process webhook with monitoring"""
-        await self.publish('webhook_events', {
-            'type': 'received',
-            'webhook_id': task_id,
-            'timestamp': datetime.utcnow().isoformat()
-        })
-
+    async def _process_delivery(self, delivery_id: str):
+        """Process a webhook delivery"""
         try:
-            task = await self.get_task_status(task_id)
-            await self.mark_task_processing(task_id)
-
-            webhook_data = await self.fetch_webhook_data(task["webhook_id"])
-            if not self.is_signature_valid(task, webhook_data):
-                raise ValueError("Invalid webhook signature")
-
-            if webhook_data["webhook_type"] == "trigger":
-                await self.trigger_workflow(webhook_data, task["body"])
-            else:
-                await self.send_webhook(webhook_data, task["body"])
-
-            await self.mark_task_completed(task_id)
-            await self.publish('webhook_events', {
-                'type': 'completed',
-                'webhook_id': task_id
-            })
+            delivery = await self.get_delivery(delivery_id)
+            webhook = await self.get_webhook(delivery["webhook_id"])
+            config = WebhookConfig(**webhook["config"])
+            
+            delivery["attempts"] += 1
+            await self._update_delivery(delivery_id, ("attempts", delivery["attempts"]))
+            
+            headers = {
+                **config.headers,
+                **delivery["headers"],
+                "Content-Type": "application/json",
+                webhook["secret"]["header_name"]: self._generate_signature(
+                    webhook["secret"]["key"],
+                    json.dumps(delivery["payload"])
+                )
+            }
+            
+            async with httpx.AsyncClient(verify=config.verify_ssl) as client:
+                response = await client.request(
+                    method=config.method,
+                    url=str(config.url),
+                    headers=headers,
+                    json=delivery["payload"],
+                    timeout=config.timeout
+                )
+                
+                if response.is_success:
+                    await self._handle_success(delivery_id, webhook["id"], response)
+                else:
+                    await self._handle_failure(
+                        delivery_id,
+                        webhook["id"],
+                        f"HTTP {response.status_code}: {response.text}",
+                        config.retry_strategy
+                    )
+                    
         except Exception as e:
-            await self.mark_task_failed(task_id, str(e))
-            await self.publish('webhook_events', {
-                'type': 'failed',
-                'webhook_id': task_id,
-                'error': str(e)
-            })
-            logging.error(f"Error processing task {task_id}: {e}")
-
-    async def fetch_webhook_data(self, webhook_id: str) -> Dict[str, Any]:
-        """Fetch webhook details from the Django API."""
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"http://localhost:8000/api/v1/webhooks/{webhook_id}")
-            response.raise_for_status()
-            return response.json()
-
-    def is_signature_valid(self, task: Dict, webhook_data: Dict) -> bool:
-        """Check if the signature in the headers matches the computed signature."""
-        signature = task["headers"].get("X-Webhook-Signature")
-        if signature:
-            return self.verify_signature(webhook_data["secret_key"], task["body"].encode(), signature)
-        return True  # No signature to validate
-
-    def verify_signature(self, secret: str, body: bytes, signature: str) -> bool:
-        """Verify webhook signature to ensure authenticity."""
-        expected_signature = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
-        is_valid = hmac.compare_digest(expected_signature, signature)
-        if not is_valid:
-            logging.warning("Webhook signature verification failed.")
-        return is_valid
-
-    async def trigger_workflow(self, webhook_data: Dict, body: str):
-        """Trigger a workflow based on webhook data."""
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "http://localhost:8000/api/v1/workflows/trigger",
-                json={
-                    "workflow_id": webhook_data["workflow_id"],
-                    "trigger_data": json.loads(body),
-                    "trigger_type": "webhook"
-                }
+            await self._handle_failure(
+                delivery_id,
+                delivery["webhook_id"],
+                str(e),
+                config.retry_strategy
             )
-            response.raise_for_status()
-
-    async def send_webhook(self, webhook_data: Dict, body: str):
-        """Send an outgoing webhook to the specified target URL."""
-        signature = hmac.new(
-            webhook_data["secret_key"].encode(),
-            body.encode(),
+            
+    async def _handle_success(
+        self,
+        delivery_id: str,
+        webhook_id: str,
+        response: httpx.Response
+    ):
+        """Handle a successful delivery"""
+        update_data = {
+            "status": WebhookStatus.SUCCESS,
+            "completed_at": datetime.utcnow().isoformat(),
+            "response": {
+                "status_code": response.status_code,
+                "headers": dict(response.headers),
+                "body": response.text
+            }
+        }
+        
+        await self._update_delivery(delivery_id, update_data)
+        await self._update_webhook_stats(webhook_id, success=True)
+        
+    async def _handle_failure(
+        self,
+        delivery_id: str,
+        webhook_id: str,
+        error: str,
+        retry_strategy: RetryStrategy
+    ):
+        """Handle a failed delivery"""
+        delivery = await self.get_delivery(delivery_id)
+        
+        if delivery["attempts"] >= retry_strategy.max_retries:
+            update_data = {
+                "status": "failed",
+                "completed_at": datetime.utcnow().isoformat(),
+                "error": error
+            }
+            await self._update_webhook_stats(webhook_id, success=False)
+        else:
+            next_retry = self._calculate_next_retry(
+                delivery["attempts"],
+                retry_strategy
+            )
+            update_data = {
+                "status": "pending",
+                "error": error,
+                "next_retry": next_retry.isoformat()
+            }
+            
+            # Schedule retry
+            retry_delay = (next_retry - datetime.utcnow()).total_seconds()
+            asyncio.create_task(self._schedule_retry(delivery_id, retry_delay))
+            
+        await self._update_delivery(delivery_id, update_data)
+            
+    def _generate_signature(
+        self, 
+        secret: str,
+        payload: str
+    ) -> str:
+        """Generate a signature for a payload"""
+        return hmac.new(
+            secret.encode(),
+            payload.encode(),
             hashlib.sha256
         ).hexdigest()
-
-        headers = {
-            **webhook_data.get("headers", {}),
-            "X-Webhook-Signature": signature,
-            "Content-Type": "application/json"
-        }
-
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                webhook_data["target_url"],
-                headers=headers,
-                json=json.loads(body)
-            )
-            if response.status_code not in [200, 201, 202]:
-                raise Exception(f"Webhook delivery failed with status {response.status_code}: {response.text}")
-
-    async def get_task_status(self, task_id: str) -> Dict[str, Any]:
-        """Retrieve the current status of a webhook processing task from Redis."""
-        task = await self.get_data(f"{self.webhook_prefix}{task_id}")
-        if not task:
-            raise ValueError(f"Task {task_id} not found")
-        return task
-
-    async def mark_task_processing(self, task_id: str):
-        """Update the task status to 'processing'."""
-        await self.update_task_status(task_id, status="processing")
-        logging.info(f"Task {task_id} marked as processing")
-
-    async def mark_task_completed(self, task_id: str):
-        """Update the task status to 'completed'."""
-        await self.update_task_status(task_id, status="completed")
-        logging.info(f"Task {task_id} completed successfully")
-
-    async def mark_task_failed(self, task_id: str, error: str):
-        """Update the task status to 'failed' with an error message."""
-        await self.update_task_status(task_id, status="failed", error=error)
-        logging.error(f"Task {task_id} failed with error: {error}")
-
-    async def update_task_status(self, task_id: str, status: str, result: Dict = None, error: str = None):
-        """Update the task status in Redis."""
-        task_data = await self.get_task_status(task_id)
-        task_data.update({
-            "status": status,
-            "result": result,
-            "error": error,
-            "updated_at": datetime.utcnow().isoformat()
-        })
-        await self.set_data(f"{self.webhook_prefix}{task_id}", task_data)
-
-    async def retry_failed_task(self, task_id: str):
-        """Retry a failed webhook task."""
-        task = await self.get_task_status(task_id)
-        if task["status"] != "failed":
-            raise ValueError("Only failed tasks can be retried")
         
-        await self.mark_task_processing(task_id)
-        await self.process_webhook(task_id)
+    def _generate_secret(self) -> str:
+        """Generate a webhook secret"""
+        return hashlib.sha256(os.urandom(32)).hexdigest()
+    
+    def _calculate_next_retry(
+        self,
+        attempts: int,
+        retry_strategy: RetryStrategy
+    ) -> datetime:
+        """Calculate next retry time using exponential backoff"""
+        interval = min(
+            retry_strategy.initial_interval * (retry_strategy.multiplier ** (attempts - 1)),
+            retry_strategy.max_interval
+        )
+        return datetime.utcnow() + timedelta(seconds=interval)
+
+    async def _schedule_retry(self, delivery_id: str, delay: float):
+        """Schedule a retry after delay"""
+        await asyncio.sleep(delay)
+        asyncio.create_task(self._process_delivery(delivery_id))
+
+    async def get_webhook(self, webhook_id: str) -> Optional[Dict[str, Any]]:
+        """Get webhook data by ID"""
+        return await self.get_data(f"{self.webhook_prefix}{webhook_id}")
+
+    async def get_delivery(self, delivery_id: str) -> Optional[Dict[str, Any]]:
+        """Get delivery data by ID"""
+        return await self.get_data(f"{self.delivery_prefix}{delivery_id}")
+
+    async def _update_delivery(self, delivery_id: str, update: Union[Dict[str, Any], Tuple[str, Any]]):
+        """Update delivery data"""
+        if isinstance(update, tuple):
+            key, value = update
+            update_dict = {key: value}
+        else:
+            update_dict = update
+            
+        delivery = await self.get_delivery(delivery_id)
+        if delivery:
+            delivery.update(update_dict)
+            await self.set_data(f"{self.delivery_prefix}{delivery_id}", delivery)
+
+    async def _update_webhook_stats(self, webhook_id: str, success: bool):
+        """Update webhook delivery statistics"""
+        webhook = await self.get_webhook(webhook_id)
+        if webhook:
+            webhook["total_deliveries"] += 1
+            if success:
+                webhook["successful_deliveries"] += 1
+            else:
+                webhook["failed_deliveries"] += 1
+            webhook["last_triggered"] = datetime.utcnow().isoformat()
+            await self.set_data(f"{self.webhook_prefix}{webhook_id}", webhook)
