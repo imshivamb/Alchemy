@@ -1,7 +1,7 @@
 
 from .base import BaseTask
 from celery import shared_task
-from fastapi_app.services import ai_service
+from backend.fastapi_app.services.ai import ai_service
 from typing import Dict, Any
 
 @shared_task(

@@ -8,7 +8,7 @@ import hashlib
 import logging
 from redis_service.base import BaseRedis
 from ..webhook_monitoring import WebhookMonitoring
-from ..types.webhook_types import WebhookConfig, WebhookSecret, RetryStrategy, WebhookStatus, WebhookMethod
+from ...types.webhook_types import WebhookConfig, WebhookSecret, RetryStrategy, WebhookStatus, WebhookMethod
 
 class WebhookService(BaseRedis):
     def __init__(self):

@@ -1,14 +1,14 @@
 import asyncio
 import uuid
 import aiohttp
-from ...django_app.tasks.ai_tasks import process_ai_request
+from ....django_app.tasks.ai_tasks import process_ai_request
 from typing import Dict, Any, Optional, List
 import os
 import openai
 import json
 from datetime import datetime
 from redis_service.base import BaseRedis
-from ..types.ai_types import AIModelType, PreprocessorType, AIConfig, OutputFormat
+from ...types.ai_types import AIModelType, PreprocessorType, AIConfig, OutputFormat
 class AIService(BaseRedis):
     def __init__(self):
         super().__init__()

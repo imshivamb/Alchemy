@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request, BackgroundTasks, Depends
 from starlette.status import HTTP_404_NOT_FOUND, HTTP_500_INTERNAL_SERVER_ERROR
-from ...services.webhook_service import WebhookService
+from ...services.webhook.webhook_service import WebhookService
 from typing import Dict, Any
 import logging
 from ...core.auth import get_current_user

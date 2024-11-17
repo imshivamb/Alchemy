@@ -11,7 +11,7 @@ from fastapi_app.types.ai_types import (
     AIConfig,
     OutputFormat
 )
-from fastapi_app.services.ai_service import AIService
+from backend.fastapi_app.services.ai.ai_service import AIService
 
 @pytest.fixture
 def ai_service():

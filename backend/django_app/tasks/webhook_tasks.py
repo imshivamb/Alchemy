@@ -2,7 +2,7 @@
 
 from .base import BaseTask
 from celery import shared_task
-from fastapi_app.services import webhook_service
+from backend.fastapi_app.services.webhook import webhook_service
 from typing import Dict, Any
 import httpx
 import hmac

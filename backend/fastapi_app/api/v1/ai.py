@@ -1,5 +1,5 @@
 from ...types.ai_types import AIRequest, AIBatchRequest, AIResponse, AIModelInfo, OutputFormat, AIModelType, PreprocessorType, AIConfig
-from ...services.ai_service import AIService
+from ...services.ai.ai_service import AIService
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Query, Depends
 from typing import List, Dict, Any, Optional
 from ...core.auth import get_current_user
