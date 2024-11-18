@@ -199,3 +199,96 @@ class GmailService:
                         ).decode('utf-8')
                         
         return ""
+    
+    async def watch_mailbox(
+        self,
+        user_id: str,
+        topic_name: str,
+        label_ids: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """Setup Gmail push notifications"""
+        try:
+            service = await self.get_client(user_id)
+            
+            request = {
+                'labelIds': label_ids or ['INBOX'],
+                'topicName': topic_name,
+                'labelFilterAction': 'include'
+            }
+            
+            response = service.users().watch(
+                userId='me',
+                body=request
+            ).execute()
+            
+            return {
+                'history_id': response['historyId'],
+                'expiration': response['expiration']
+            }
+        except HttpError as error:
+            raise Exception(f"Failed to setup watch: {error}")
+
+    async def stop_watching(self, user_id: str):
+        """Stop Gmail push notifications"""
+        try:
+            service = await self.get_client(user_id)
+            service.users().stop(userId='me').execute()
+        except HttpError as error:
+            raise Exception(f"Failed to stop watching: {error}")
+
+    async def update_labels(
+        self,
+        user_id: str,
+        message_id: str,
+        add_labels: Optional[List[str]] = None,
+        remove_labels: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """Update email labels"""
+        try:
+            service = await self.get_client(user_id)
+            
+            body = {
+                'addLabelIds': add_labels or [],
+                'removeLabelIds': remove_labels or []
+            }
+            
+            response = service.users().messages().modify(
+                userId='me',
+                id=message_id,
+                body=body
+            ).execute()
+            
+            return {
+                'message_id': response['id'],
+                'labels': response['labelIds']
+            }
+        except HttpError as error:
+            raise Exception(f"Failed to update labels: {error}")
+
+    async def get_message(
+        self,
+        user_id: str,
+        message_id: str,
+        format: str = 'full'
+    ) -> Dict[str, Any]:
+        """Get specific email message"""
+        try:
+            service = await self.get_client(user_id)
+            message = service.users().messages().get(
+                userId='me',
+                id=message_id,
+                format=format
+            ).execute()
+            
+            return self._parse_message(message)
+        except HttpError as error:
+            raise Exception(f"Failed to get message: {error}")
+
+    async def list_labels(self, user_id: str) -> List[Dict[str, Any]]:
+        """Get all Gmail labels"""
+        try:
+            service = await self.get_client(user_id)
+            results = service.users().labels().list(userId='me').execute()
+            return results.get('labels', [])
+        except HttpError as error:
+            raise Exception(f"Failed to list labels: {error}")
