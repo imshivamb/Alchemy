@@ -118,7 +118,7 @@ async def test_fallback_behavior(ai_service, mock_openai_response):
             "model": AIModelType.GPT4,
             "prompt": "Test prompt",
             "fallback_behavior": {
-                "fallback_model": AIModelType.GPT35,
+                "fallback_model": AIModelType.GPT_35_TURBO,
                 "max_retries": 3
             }
         }

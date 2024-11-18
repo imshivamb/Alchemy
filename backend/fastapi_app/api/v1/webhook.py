@@ -3,8 +3,8 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 from pydantic import BaseModel
 from ...types.webhook_types import *
-from services.webhook.webhook_service import WebhookService
-from core.auth import get_current_user
+from fastapi_app.services.webhook.webhook_service import WebhookService
+from ...core.auth import get_current_user
 
 router = APIRouter()
 webhook_service = WebhookService()
@@ -204,5 +204,79 @@ async def retry_delivery(
         }
     except HTTPException as e:
         raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+    
+@router.put("/webhooks/{webhook_id}")
+async def update_webhook(
+    webhook_id: str,
+    config: WebhookConfig,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update webhook configuration"""
+    try:
+        webhook = await webhook_service.get_webhook(webhook_id)
+        if webhook["user_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Not authorized")
+            
+        updated_webhook = await webhook_service.update_webhook(
+            webhook_id=webhook_id,
+            config=config
+        )
+        return updated_webhook
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/webhooks/{webhook_id}")
+async def delete_webhook(
+    webhook_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete webhook"""
+    try:
+        webhook = await webhook_service.get_webhook(webhook_id)
+        if webhook["user_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Not authorized")
+            
+        await webhook_service.delete_webhook(webhook_id)
+        return {"message": "Webhook deleted successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@router.post("/webhooks/{webhook_id}/verify")
+async def verify_signature(
+    webhook_id: str,
+    payload: str,
+    signature: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Verify webhook signature"""
+    try:
+        webhook = await webhook_service.get_webhook(webhook_id)
+        if webhook["user_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Not authorized")
+            
+        is_valid = await webhook_service.verify_signature(
+            webhook["secret"]["key"],
+            payload,
+            signature
+        )
+        return {"valid": is_valid}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/webhooks/{webhook_id}/health")
+async def get_webhook_health(
+    webhook_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get webhook health metrics"""
+    try:
+        webhook = await webhook_service.get_webhook(webhook_id)
+        if webhook["user_id"] != current_user["user_id"]:
+            raise HTTPException(status_code=403, detail="Not authorized")
+            
+        return await webhook_service.get_webhook_health(webhook_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

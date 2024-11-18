@@ -1,7 +1,7 @@
 import asyncio
 import uuid
 import aiohttp
-from ....django_app.tasks.ai_tasks import process_ai_request
+from django_app.tasks.ai_tasks import process_ai_request
 from typing import Dict, Any, Optional, List
 import os
 import openai
@@ -14,7 +14,7 @@ class AIService(BaseRedis):
         super().__init__()
         self.task_prefix = "ai_task:"
         self.openai_api_key = os.getenv("OPENAI_API_KEY")
-        self.model_configs = self._inititalize_model_configs()
+        self.model_configs = self._initialize_model_configs()
         self.prompt_templates = self._load_prompt_templates()
         openai.api_key = os.getenv("OPENAI_API_KEY")
         
@@ -33,7 +33,7 @@ class AIService(BaseRedis):
                 "cost_per_token": 0.03,
                 "recommended_uses": ["Complex Reasoning", "Code generation"]
             },
-            AIModelType.GPT_35: {
+            AIModelType.GPT_35_TURBO: {
                 "max_tokens": 4096,
                 "supports_functions": True,
                 "cost_per_token": 0.002,
@@ -81,7 +81,7 @@ class AIService(BaseRedis):
                     stop=None,
                     stream=False,
                 )
-            elif model == AIModelType.GPT_35:
+            elif model == AIModelType.GPT_35_TURBO:
                 response = openai.ChatCompletion.create(
                     model="gpt-3.5-turbo",
                     messages=[

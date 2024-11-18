@@ -6,7 +6,7 @@ from datetime import datetime
 class AIModelType(str, Enum):
     GPT_40_MINI = 'gpt-40-mini'
     GPT_4 = 'gpt-4'
-    GPT_35 = 'gpt-3.5-turbo'
+    GPT_35_TURBO = 'gpt-3.5-turbo'
     CUSTOM = 'custom'
 
 class OutputFormat(str, Enum):
@@ -34,7 +34,7 @@ class AIConfig(BaseModel):
 class AIRequest(BaseModel):
     workflow_id: str
     input_data: Dict[Any, Any]
-    model: AIModelType = Field(default=AIModelType.GPT35_TURBO)
+    model: AIModelType = Field(default=AIModelType.GPT_35_TURBO)
     max_tokens: int = Field(default=150, gt=0, le=8192)
     temperature: float = Field(default=0.7, ge=0, le=1)
     preprocessors: Optional[List[Dict[str, Any]]] = None

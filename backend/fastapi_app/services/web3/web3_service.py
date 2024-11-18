@@ -7,14 +7,15 @@ import base58
 from solders.keypair import Keypair
 from solana.rpc.async_api import AsyncClient
 from solana.transaction import Transaction
-from solana.system_program import TransferParams, transfer
-from solana.publickey import PublicKey
+from solders.system_program import TransferParams, transfer
+from solders.pubkey import Pubkey as PublicKey
+
 from solana.rpc.types import TokenAccountOpts, TxOpts
 from solana.rpc.commitment import Confirmed
-from solana.token.async_client import AsyncToken
-from solana.token.constants import TOKEN_PROGRAM_ID
-from solana.stake.program import StakeProgram
-from solana.stake.state import StakeState, Authorized, Lockup
+from spl.token.async_client import AsyncToken
+from spl.token.constants import TOKEN_PROGRAM_ID
+# from solana.stake.program import StakeProgram
+# from solana.stake.state import StakeState, Authorized, Lockup
 from .constants import RPC_ENDPOINTS, DEFAULT_COMMITMENT, MAX_RETRIES, RETRY_DELAY, TRANSACTION_TIMEOUT, MINIMUM_SOL_BALANCE
 
 class Web3Service(BaseRedis):
@@ -191,149 +192,149 @@ class Web3Service(BaseRedis):
         except Exception as e:
             raise Exception(f"Burn failed: {str(e)}")
     
-    async def _handle_stake(self, client: AsyncClient, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle SOL staking to a validator"""
-        try:
-            payer = Keypair.from_secret_key(
-                base58.b58decode(params["private_key"])
-            )
+    # async def _handle_stake(self, client: AsyncClient, params: Dict[str, Any]) -> Dict[str, Any]:
+    #     """Handle SOL staking to a validator"""
+    #     try:
+    #         payer = Keypair.from_secret_key(
+    #             base58.b58decode(params["private_key"])
+    #         )
             
-            stake_account = Keypair.generate()
+    #         stake_account = Keypair.generate()
             
-            rent = await client.get_minimum_balance_for_rent_exemption(
-                StakeState.get_size()
-            )
+    #         rent = await client.get_minimum_balance_for_rent_exemption(
+    #             StakeState.get_size()
+    #         )
             
-            #Create stake account transaction
-            create_stake_tx = Transaction().add(
-                StakeProgram.create_account({
-                    'from_pubkey': payer.public_key,
-                    'stake_pubkey': stake_account.public_key,
-                    'authorized': Authorized(
-                        staker=payer.public_key,
-                        withdrawer=payer.public_key,
-                    ),
-                    'lockup': Lockup(
-                        unix_timestamp=0,
-                        epoch=0,
-                        custodian=payer.public_key,
-                    ),
-                    'lamports': params["amount"] + rent
-                })
-            )
-            create_signature = await client.send_transaction(
-                create_stake_tx,
-                payer,
-                stake_account,
-                opts=TxOpts(skip_preflight=False, preflight_commitment=Confirmed)
-            )
+    #         #Create stake account transaction
+    #         create_stake_tx = Transaction().add(
+    #             StakeProgram.create_account({
+    #                 'from_pubkey': payer.public_key,
+    #                 'stake_pubkey': stake_account.public_key,
+    #                 'authorized': Authorized(
+    #                     staker=payer.public_key,
+    #                     withdrawer=payer.public_key,
+    #                 ),
+    #                 'lockup': Lockup(
+    #                     unix_timestamp=0,
+    #                     epoch=0,
+    #                     custodian=payer.public_key,
+    #                 ),
+    #                 'lamports': params["amount"] + rent
+    #             })
+    #         )
+    #         create_signature = await client.send_transaction(
+    #             create_stake_tx,
+    #             payer,
+    #             stake_account,
+    #             opts=TxOpts(skip_preflight=False, preflight_commitment=Confirmed)
+    #         )
             
-            delegate_tx = Transaction().add(
-                StakeProgram.delegate_stake(
-                    stake_pubkey=stake_account.public_key,
-                    authorized_pubkey=payer.public_key,
-                    vote_pubkey=params["validator"]
-                )
-            )
+    #         delegate_tx = Transaction().add(
+    #             StakeProgram.delegate_stake(
+    #                 stake_pubkey=stake_account.public_key,
+    #                 authorized_pubkey=payer.public_key,
+    #                 vote_pubkey=params["validator"]
+    #             )
+    #         )
             
-            delegate_signature = await client.send_transaction(
-                delegate_tx,
-                payer,
-                opts=TxOpts(skip_preflight=False, preflight_commitment=Confirmed)
-            )
+    #         delegate_signature = await client.send_transaction(
+    #             delegate_tx,
+    #             payer,
+    #             opts=TxOpts(skip_preflight=False, preflight_commitment=Confirmed)
+    #         )
             
-            return {
-                "status": "success",
-                "stake_account": str(stake_account.public_key),
-                "create_signature": str(create_signature.value),
-                "delegate_signature": str(delegate_signature.value),
-                "amount": params["amount"],
-                "validator": params["validator"]
-            }
-        except Exception as e:
-            raise Exception(f"Staking failed: {str(e)}")
+    #         return {
+    #             "status": "success",
+    #             "stake_account": str(stake_account.public_key),
+    #             "create_signature": str(create_signature.value),
+    #             "delegate_signature": str(delegate_signature.value),
+    #             "amount": params["amount"],
+    #             "validator": params["validator"]
+    #         }
+    #     except Exception as e:
+    #         raise Exception(f"Staking failed: {str(e)}")
         
-    async def _handle_unstake(self, client: AsyncClient, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle SOL unstaking"""
-        try:
-            payer = Keypair.from_secret_key(
-                base58.b58decode(params["private_key"])
-            )
+    # async def _handle_unstake(self, client: AsyncClient, params: Dict[str, Any]) -> Dict[str, Any]:
+    #     """Handle SOL unstaking"""
+    #     try:
+    #         payer = Keypair.from_secret_key(
+    #             base58.b58decode(params["private_key"])
+    #         )
             
-            deactivate_tx = Transaction().add(
-                StakeProgram.deactivate_stake(
-                    stake_pubkey=params["stake_account"],
-                    authorized_pubkey=payer.public_key
-                )
-            )
+    #         deactivate_tx = Transaction().add(
+    #             StakeProgram.deactivate_stake(
+    #                 stake_pubkey=params["stake_account"],
+    #                 authorized_pubkey=payer.public_key
+    #             )
+    #         )
             
-            deactivate_signature = await client.send_transaction(
-                deactivate_tx,
-                payer,
-                opts=TxOpts(skip_preflight=False, preflight_commitment=Confirmed)
-            )
+    #         deactivate_signature = await client.send_transaction(
+    #             deactivate_tx,
+    #             payer,
+    #             opts=TxOpts(skip_preflight=False, preflight_commitment=Confirmed)
+    #         )
             
-            stake_info = await self.get_stake_info(
-                params["network"],
-                params["stake_account"]
-            )
+    #         stake_info = await self.get_stake_info(
+    #             params["network"],
+    #             params["stake_account"]
+    #         )
             
-            return {
-                "status": "deactivating",
-                "signature": str(deactivate_signature.value),
-                "stake_account": params["stake_account"],
-                "current_epoch": stake_info["epoch"],
-                "estimated_cooldown_epochs": 2,
-                "message": "Stake account deactivated. Funds will be available after cooldown period."
-            }
-        except Exception as e:
-            raise Exception(f"Unstaking failed: {str(e)}")
+    #         return {
+    #             "status": "deactivating",
+    #             "signature": str(deactivate_signature.value),
+    #             "stake_account": params["stake_account"],
+    #             "current_epoch": stake_info["epoch"],
+    #             "estimated_cooldown_epochs": 2,
+    #             "message": "Stake account deactivated. Funds will be available after cooldown period."
+    #         }
+    #     except Exception as e:
+    #         raise Exception(f"Unstaking failed: {str(e)}")
         
-    async def withdraw_unstaked(
-        self,
-        network: Web3Network,
-        stake_account: str,
-        recipient: str,
-        private_key: str
-    ) -> Dict[str, Any]:
-        """
-        Withdraw deactivated stake to recipient address
-        """
-        try:
-            client = self.clients[network]
-            payer = Keypair.from_secret_key(base58.b58decode(private_key))
+    # async def withdraw_unstaked(
+    #     self,
+    #     network: Web3Network,
+    #     stake_account: str,
+    #     recipient: str,
+    #     private_key: str
+    # ) -> Dict[str, Any]:
+    #     """
+    #     Withdraw deactivated stake to recipient address
+    #     """
+    #     try:
+    #         client = self.clients[network]
+    #         payer = Keypair.from_secret_key(base58.b58decode(private_key))
             
-            # Check stake account status
-            stake_info = await self.get_stake_info(network, stake_account)
-            if stake_info["state"] != "inactive":
-                raise Exception("Stake account is not ready for withdrawal")
+    #         # Check stake account status
+    #         stake_info = await self.get_stake_info(network, stake_account)
+    #         if stake_info["state"] != "inactive":
+    #             raise Exception("Stake account is not ready for withdrawal")
                 
-            # Create withdraw transaction
-            withdraw_tx = Transaction().add(
-                StakeProgram.withdraw(
-                    stake_pubkey=stake_account,
-                    authorized_pubkey=payer.public_key,
-                    to_pubkey=recipient,
-                    lamports=stake_info["inactive"]
-                )
-            )
+    #         # Create withdraw transaction
+    #         withdraw_tx = Transaction().add(
+    #             StakeProgram.withdraw(
+    #                 stake_pubkey=stake_account,
+    #                 authorized_pubkey=payer.public_key,
+    #                 to_pubkey=recipient,
+    #                 lamports=stake_info["inactive"]
+    #             )
+    #         )
             
-            # Sign and send withdrawal transaction
-            signature = await client.send_transaction(
-                withdraw_tx,
-                payer,
-                opts=TxOpts(skip_preflight=False, preflight_commitment=Confirmed)
-            )
+    #         # Sign and send withdrawal transaction
+    #         signature = await client.send_transaction(
+    #             withdraw_tx,
+    #             payer,
+    #             opts=TxOpts(skip_preflight=False, preflight_commitment=Confirmed)
+    #         )
             
-            return {
-                "status": "success",
-                "signature": str(signature.value),
-                "amount": stake_info["inactive"],
-                "recipient": recipient
-            }
+    #         return {
+    #             "status": "success",
+    #             "signature": str(signature.value),
+    #             "amount": stake_info["inactive"],
+    #             "recipient": recipient
+    #         }
             
-        except Exception as e:
-            raise Exception(f"Withdrawal failed: {str(e)}")
+    #     except Exception as e:
+    #         raise Exception(f"Withdrawal failed: {str(e)}")
     
     async def get_token_info(self, network: Web3Network, token_mint: str) -> Dict[str, Any]:
         """Get token information"""

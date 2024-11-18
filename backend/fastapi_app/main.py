@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .api.v1 import ai, webhook, monitoring
+from .api.v1 import ai, webhook, monitoring, web3
 from fastapi.openapi.utils import get_openapi
 from .core.auth import get_current_user
 
@@ -39,6 +39,7 @@ app.add_middleware(
 #Including Routers
 app.include_router(ai.router, prefix="/api/v1/ai", tags=["AI Processing"])
 app.include_router(webhook.router, prefix="/api/v1/webhooks", tags=["Webhooks"])
+app.include_router(web3.router, prefix="/api/v1/web3", tags=["Web3"])
 app.include_router(monitoring.router, prefix="/api/v1/monitoring", tags=["Monitoring"])
 
 
