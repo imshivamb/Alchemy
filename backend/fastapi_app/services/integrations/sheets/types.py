@@ -26,6 +26,7 @@ class SheetProperties(BaseModel):
     title: str
     sheet_type: str = "GRID"
     row_count: int = 1000
+    column_count: int = 26
 
 class SpreadsheetCreate(BaseModel):
     title: str
