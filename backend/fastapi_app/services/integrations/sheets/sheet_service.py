@@ -91,6 +91,168 @@ class SheetsService:
                          range: str,
                          render_option: ValueRenderOption = ValueRenderOption.FORMATTED_VALUE) -> List[List[Any]]:
         """Read values from spreadsheet"""
-        
-        
+        try:
+            service = await self.get_client(user_id)
+            
+            request = service.spreadsheets().values().get(
+                spreadsheetId=spreadsheet_id,
+                range=range,
+                valueRenderOption=render_option
+            )
+            response = request.execute()
+            
+            return response.get('values', [])
+        except HttpError as error:
+            raise Exception(f"Failed to get values: {error}")
+    
+    async def update_values(
+        self,
+        user_id: str,
+        spreadsheet_id: str,
+        range_data: RangeData,
+        input_option: ValueInputOption = ValueInputOption.USER_ENTERED
+    ) -> Dict[str, Any]:
+        """Update values in spreadsheet"""
+        try:
+            service = await self.get_client(user_id)
+            
+            body = {
+                'values': range_data.values
+            }
+            
+            request = service.spreadsheets().values().update(
+                spreadsheetId=spreadsheet_id,
+                range=range_data.range,
+                valueInputOption=input_option,
+                body=body
+            )
+            response = request.execute()
+            
+            return {
+                'updated_cells': response['updatedCells'],
+                'updated_rows': response['updatedRows'],
+                'updated_columns': response['updatedColumns'],
+                'updated_range': response['updatedRange']
+            }
+            
+        except HttpError as error:
+            raise Exception(f"Failed to update values: {error}")
+    
+    async def append_values(
+        self,
+        user_id: str,
+        spreadsheet_id: str,
+        range_data: RangeData,
+        input_option: ValueInputOption = ValueInputOption.USER_ENTERED
+    ) -> Dict[str, Any]:
+        """Append values to spreadsheet"""
+        try:
+            service = await self.get_client(user_id)
+            
+            body = {
+                'values': range_data.values
+            }
+            
+            request = service.spreadsheets().values().append(
+                spreadsheetId=spreadsheet_id,
+                range=range_data.range,
+                valueInputOption=input_option,
+                body=body
+            )
+            response = request.execute()
+            
+            return {
+                'updates': {
+                    'spreadsheet_id': response['spreadsheetId'],
+                    'updated_range': response['updates']['updatedRange'],
+                    'updated_rows': response['updates']['updatedRows'],
+                    'updated_columns': response['updates']['updatedColumns'],
+                }
+            }
+            
+        except HttpError as error:
+            raise Exception(f"Failed to append values: {error}")
+    
+    async def clear_values(
+        self,
+        user_id: str,
+        spreadsheet_id: str,
+        range: str
+    ) -> Dict[str, Any]:
+        """Clear values in spreadsheet"""
+        try:
+            service = await self.get_client(user_id)
+            
+            request = service.spreadsheets().values().clear(
+                spreadsheetId=spreadsheet_id,
+                range=range,
+                body={}
+            )
+            response = request.execute()
+            
+            return {
+                'cleared_range': response['clearedRange']
+            }
+            
+        except HttpError as error:
+            raise Exception(f"Failed to clear values: {error}")
+
+    async def get_spreadsheet_metadata(
+        self,
+        user_id: str,
+        spreadsheet_id: str
+    ) -> Dict[str, Any]:
+        """Get spreadsheet metadata"""
+        try:
+            service = await self.get_client(user_id)
+            
+            request = service.spreadsheets().get(
+                spreadsheetId=spreadsheet_id
+            )
+            response = request.execute()
+            
+            return {
+                'spreadsheet_id': response['spreadsheetId'],
+                'title': response['properties']['title'],
+                'locale': response['properties']['locale'],
+                'time_zone': response['properties']['timeZone'],
+                'sheets': [
+                    {
+                        'sheet_id': sheet['properties']['sheetId'],
+                        'title': sheet['properties']['title'],
+                        'index': sheet['properties']['index'],
+                        'sheet_type': sheet['properties']['sheetType'],
+                        'grid_properties': sheet['properties'].get('gridProperties', {})
+                    }
+                    for sheet in response['sheets']
+                ]
+            }
+            
+        except HttpError as error:
+            raise Exception(f"Failed to get metadata: {error}")
+
+    async def batch_update(
+        self,
+        user_id: str,
+        spreadsheet_id: str,
+        requests: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Perform batch updates on spreadsheet"""
+        try:
+            service = await self.get_client(user_id)
+            
+            body = {
+                'requests': requests
+            }
+            
+            request = service.spreadsheets().batchUpdate(
+                spreadsheetId=spreadsheet_id,
+                body=body
+            )
+            response = request.execute()
+            
+            return response
+            
+        except HttpError as error:
+            raise Exception(f"Failed to perform batch update: {error}")
     
