@@ -24,6 +24,7 @@ class SlackMessage(BaseModel):
     reply_broadcast: Optional[bool] = False
     unfurl_links: Optional[bool] = True
     unfurl_media: Optional[bool] = True
+    mrkdwn: Optional[bool] = True
 
 class FileUpload(BaseModel):
     channels: List[str]
