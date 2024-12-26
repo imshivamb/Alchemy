@@ -49,3 +49,19 @@ class SlackResponse(BaseModel):
     error: Optional[str] = None
     warning: Optional[str] = None
     response_metadata: Optional[Dict[str, Any]] = None 
+    
+class SlackEventType(str, Enum):
+    MESSAGE = "message"
+    REACTION_ADDED = "reaction_added"
+    CHANNEL_CREATED = "channel_created"
+    CHANNEL_ARCHIVED = "channel_archived"
+    MEMBER_JOINED_CHANNEL = "member_joined_channel"
+    FILE_SHARED = "file_shared"
+    APP_MENTION = "app_mention"
+
+class SlackEvent(BaseModel):
+    type: SlackEventType
+    event_id: str
+    team_id: str
+    event_time: int
+    event_data: Dict[str, Any]

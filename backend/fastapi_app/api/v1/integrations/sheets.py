@@ -1,15 +1,15 @@
 from  fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Optional, Dict, Any
 from fastapi_app.services.integrations.sheets.sheet_service import SheetsService
-from services.integrations.sheets.types import (
+from fastapi_app.services.integrations.sheets.types import (
     SpreadsheetCreate,
     RangeData,
     ValueInputOption,
     ValueRenderOption
 )
-from core.auth import get_current_user
+from fastapi_app.core.auth import get_current_user
 
-router = APIRouter(prefix="/sheets", tags=["Google-Sheets"])
+router = APIRouter( tags=["Google Sheets"])
 sheets_service = SheetsService()
 
 @router.post("/spreadsheets")

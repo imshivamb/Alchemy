@@ -49,6 +49,35 @@ export class AuthService {
         }
     }
 
+    static async socialAuth(code: string): Promise<AuthResponse> {
+        try {
+            const response = await axiosInstance.post(`${API_BASE_URL}/auth/social/google/`, { 
+                code,
+                redirect_uri: process.env.NEXT_PUBLIC_GOOGLE_CALLBACK_URL
+            });
+    
+            const authResponse: AuthResponse = {
+                tokens: {
+                    access: response.data.access,
+                    refresh: response.data.refresh
+                },
+                user: response.data.user
+            };
+            
+            // Store tokens
+            localStorage.setItem('accessToken', authResponse.tokens.access);
+            localStorage.setItem('refreshToken', authResponse.tokens.refresh);
+    
+            return authResponse;
+        } catch (error) {
+            console.error('Social auth error:', error);
+            if (axios.isAxiosError(error)) {
+                console.error('Response data:', error.response?.data);
+            }
+            throw error;
+        }
+    }
+
     static async logout(refreshToken: string): Promise<void> {
         try {
             await axiosInstance.post(`${API_BASE_URL}/auth/logout`, { refreshToken }, {

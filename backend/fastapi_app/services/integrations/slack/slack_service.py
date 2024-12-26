@@ -3,12 +3,18 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from ...oauth.token_manager import TokenManager
 from fastapi_app.types.oauth_types import OAuthProvider
+import hmac
+import hashlib
 from .types import (
     SlackMessage,
     FileUpload,
     ChannelCreate,
-    MessageBlock
+    MessageBlock,
+    SlackEventType,
+    SlackEvent
 )
+from django.conf import settings
+
 
 class SlackService:
     def __init__(self):
@@ -279,3 +285,100 @@ class SlackService:
                     
         except Exception as e:
             raise Exception(f"Failed to invite users: {str(e)}")
+        
+    async def register_event_subscription(
+        self,
+        user_id: str,
+        callback_url: str,
+        events: List[SlackEventType]
+    ) -> Dict[str, Any]:
+        """Register event subscriptions"""
+        try:
+            headers = await self._get_headers(user_id)
+            
+            payload = {
+                "url": callback_url,
+                "events": events
+            }
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    f"{self.base_url}/apps.event.authorizations",
+                    headers=headers,
+                    json=payload
+                ) as response:
+                    result = await response.json()
+                    
+                    if not result["ok"]:
+                        raise Exception(result["error"])
+                    
+                    return {
+                        "verification_token": result["verification_token"],
+                        "events": events
+                    }
+                    
+        except Exception as e:
+            raise Exception(f"Failed to register events: {str(e)}")
+        
+    async def verify_webhook_signature(
+        self,
+        timestamp: str,
+        signature: str,
+        body: str
+    ) -> bool:
+        """Verify incoming webhook signature"""
+        # Slack uses a specific signing secret to verify webhooks
+        signing_secret = settings.SLACK_SIGNING_SECRET
+        sig_basestring = f"v0:{timestamp}:{body}"
+        
+        my_signature = 'v0=' + hmac.new(
+            signing_secret.encode(),
+            sig_basestring.encode(),
+            hashlib.sha256
+        ).hexdigest()
+        
+        return hmac.compare_digest(my_signature, signature)
+
+    async def process_event(
+        self,
+        event: SlackEvent,
+        user_id: str
+    ) -> Dict[str, Any]:
+        """Process incoming Slack event"""
+        try:
+            # Handle different event types
+            if event.type == SlackEventType.MESSAGE:
+                return await self._handle_message_event(event, user_id)
+                
+            elif event.type == SlackEventType.REACTION_ADDED:
+                return await self._handle_reaction_event(event, user_id)
+                
+            elif event.type == SlackEventType.CHANNEL_CREATED:
+                return await self._handle_channel_event(event, user_id)
+                
+            elif event.type == SlackEventType.APP_MENTION:
+                return await self._handle_mention_event(event, user_id)
+                
+            else:
+                return {
+                    "status": "unhandled",
+                    "event_type": event.type
+                }
+                
+        except Exception as e:
+            raise Exception(f"Failed to process event: {str(e)}")
+
+    async def _handle_message_event(
+        self,
+        event: SlackEvent,
+        user_id: str
+    ) -> Dict[str, Any]:
+        """Handle message events"""
+        message_data = event.event_data
+        return {
+            "type": "message",
+            "channel": message_data.get("channel"),
+            "user": message_data.get("user"),
+            "text": message_data.get("text"),
+            "ts": message_data.get("ts")
+        }

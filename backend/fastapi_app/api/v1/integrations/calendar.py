@@ -2,16 +2,16 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import List, Optional
 from datetime import datetime
 from pydantic import BaseModel
-from services.integrations.calendar.calendar_service import CalendarService
-from services.integrations.calendar.types import (
+from fastapi_app.services.integrations.calendar.calendar_service import CalendarService
+from fastapi_app.services.integrations.calendar.types import (
     CalendarEvent,
     EventTime,
     Attendee,
     EventReminder
 )
-from core.auth import get_current_user
+from fastapi_app.core.auth import get_current_user
 
-router = APIRouter(prefix="/calendar", tags=["Google-Calendar"])
+router = APIRouter( tags=["Google Calendar"])
 calendar_service = CalendarService()
 
 class CreateEventRequest(CalendarEvent):

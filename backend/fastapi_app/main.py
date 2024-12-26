@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .api.v1 import ai, webhook, monitoring, web3
+from .api.v1.integrations import slack, gmail, sheets, calendar
 from fastapi.openapi.utils import get_openapi
 from .core.auth import get_current_user
 
@@ -40,7 +41,14 @@ app.add_middleware(
 app.include_router(ai.router, prefix="/api/v1/ai", tags=["AI Processing"])
 app.include_router(webhook.router, prefix="/api/v1/webhooks", tags=["Webhooks"])
 app.include_router(web3.router, prefix="/api/v1/web3", tags=["Web3"])
+
 app.include_router(monitoring.router, prefix="/api/v1/monitoring", tags=["Monitoring"])
+app.include_router(gmail.router, prefix="/api/v1/integrations/gmail", tags=["Gmail"])
+app.include_router(sheets.router, prefix="/api/v1/integrations/sheets", tags=["Google Sheets"])
+app.include_router(calendar.router, prefix="/api/v1/integrations/calendar", tags=["Google Calendar"])
+app.include_router(slack.router, prefix="/api/v1/integrations/slack", tags=["Slack"])
+
+
 
 
 # Custom OpenAPI schema

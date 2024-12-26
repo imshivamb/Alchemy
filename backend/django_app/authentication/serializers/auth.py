@@ -9,6 +9,7 @@ from django.contrib.auth import authenticate
 from dj_rest_auth.registration.serializers import RegisterSerializer as DefaultRegisterSerializer
 from .profile import UserProfileSerializer
 from datetime import timedelta
+from ..models import UserProfile
 
 User = get_user_model()
 
@@ -272,3 +273,14 @@ class VerificationStatusSerializer(serializers.ModelSerializer):
         model = User
         fields = ('email', 'is_verified')
         read_only_fields = fields
+        
+class SocialAuthResponseSerializer(serializers.Serializer):
+    """Serializer for social authentication response"""
+    access = serializers.CharField()
+    refresh = serializers.CharField()
+    user = UserSerializer()
+    is_new_user = serializers.BooleanField()
+    social_provider = serializers.CharField()
+    plan_type = serializers.ChoiceField(choices=UserProfile.PLAN_CHOICES)
+    account_status = serializers.CharField()
+    onboarding_completed = serializers.BooleanField()

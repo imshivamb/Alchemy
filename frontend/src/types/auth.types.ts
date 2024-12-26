@@ -77,3 +77,13 @@ export interface EmailVerificationData {
 export interface EmailVerificationStatus {
     is_verified: boolean;
 }
+
+export interface SocialAuthResponse {
+    code: string;
+    provider: 'google' | 'github';
+}
+  
+export interface SocialAuthResult {
+    tokens: AuthTokens;
+    user: User;
+}

@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "sonner";
 import { cn } from "@/lib/utils";
 import InitAuthCheck from "@/components/auth/initial-auth-check";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -18,7 +19,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Zapnium",
+  title: "Alchemy",
   description: "AI Automation Platform",
   icons: {
     icon: "/favicon.ico",
@@ -40,7 +41,9 @@ export default function RootLayout({
         )}
         suppressHydrationWarning
       >
-        <InitAuthCheck>{children}</InitAuthCheck>
+        <InitAuthCheck>
+          <TooltipProvider>{children}</TooltipProvider>
+        </InitAuthCheck>
         <Toaster position="top-center" expand={true} richColors closeButton />
       </body>
     </html>

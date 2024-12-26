@@ -185,6 +185,8 @@ SWAGGER_SETTINGS = {
 # Social Authentication Settings
 GOOGLE_OAUTH_CALLBACK_URL = os.getenv('GOOGLE_OAUTH_CALLBACK_URL', 'http://localhost:3000/auth/google/callback')
 GITHUB_OAUTH_CALLBACK_URL = os.getenv('GITHUB_OAUTH_CALLBACK_URL', 'http://localhost:3000/auth/github/callback')
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 
 # Social Account Provider Settings
 SOCIALACCOUNT_PROVIDERS = {
@@ -201,7 +203,7 @@ SOCIALACCOUNT_PROVIDERS = {
         'AUTH_PARAMS': {
             'access_type': 'online',
         },
-        'OAUTH_PKCE_ENABLED': True,
+        'OAUTH_PKCE_ENABLED': False,
     },
     'github': {
         'APP': {
@@ -229,16 +231,19 @@ ACCOUNT_USERNAME_VALIDATORS = None
 # Additional AllAuth Settings
 # Social Authentication General Settings
 SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
-SOCIALACCOUNT_EMAIL_REQUIRED = True
+SOCIALACCOUNT_EMAIL_REQUIRED = False
 SOCIALACCOUNT_QUERY_EMAIL = True
 SOCIALACCOUNT_AUTO_SIGNUP = True
 SOCIALACCOUNT_ADAPTER = 'authentication.adapters.CustomSocialAccountAdapter'
 
 # JWT Settings for Social Auth
 SOCIAL_AUTH_ALLOWED_REDIRECT_URIS = [
-    'http://localhost:3000/auth/google/callback',
-    'http://localhost:3000/auth/github/callback',
+    GOOGLE_OAUTH_CALLBACK_URL,
+    GITHUB_OAUTH_CALLBACK_URL,
 ]
+
+SOCIAL_AUTH_JWT_ENABLED = True
+SOCIAL_AUTH_JWT_ALGORITHM = 'HS256'
 
 # Additional Social Auth Settings
 SOCIAL_AUTH_PIPELINE = (
@@ -364,6 +369,7 @@ REST_FRAMEWORK = {
         'anon': '100/day',
         'user': '1000/day',
         'login': '5/minute',
+         'social_auth': '5/minute',
     },
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',

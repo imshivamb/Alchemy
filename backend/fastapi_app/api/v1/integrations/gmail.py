@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, Query, BackgroundTasks, HTTPException
 from typing import List, Optional, Literal
 from pydantic import BaseModel, EmailStr
-from services.integrations.gmail.gmail_service import GmailService
-from services.integrations.gmail.types import EmailMessage, GmailActionType, EmailAttachment, GmailFilter
-from core.auth import get_current_user
+from fastapi_app.services.integrations.gmail.gmail_service import GmailService
+from fastapi_app.services.integrations.gmail.types import EmailMessage, GmailActionType, EmailAttachment, GmailFilter
+from fastapi_app.core.auth import get_current_user
 
-router = APIRouter(prefix="/gmail", tags=["gmail"])
+router = APIRouter( tags=["Gmail"])
 gmail_service = GmailService()
 
 class SendEmailRequest(BaseModel):

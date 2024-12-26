@@ -20,6 +20,7 @@ import { Button } from "../ui/button";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
+import SocialLogin from "./social-login";
 
 const LoginForm = () => {
   const [serverError, setServerError] = useState<string | null>(null);
@@ -125,6 +126,7 @@ const LoginForm = () => {
           </div>
         </form>
       </Form>
+      <SocialLogin />
     </div>
   );
 };
