@@ -12,7 +12,6 @@ User = get_user_model()
 class BaseViewSet(viewsets.ModelViewSet):
     """Base ViewSet with common functionality"""
     permission_classes = [IsAuthenticated]
-    schema = None
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)

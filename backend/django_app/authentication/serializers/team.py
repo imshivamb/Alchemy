@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from django.conf import settings
 from django.db import models
+from ..models import Team, TeamMembership
 
 User = get_user_model()
 
@@ -10,7 +11,7 @@ class TeamMembershipDetailSerializer(TimestampedSerializer):
     user = serializers.SerializerMethodField()
     
     class Meta:
-        model = User.team_memberships.field.related_model
+        model = TeamMembership
         fields = ['id', 'user', 'role', 'joined_at', 'created_at', 'updated_at']
         
     def get_user(self, obj):
@@ -26,7 +27,7 @@ class TeamSerializer(TimestampedSerializer):
     owner_email = serializers.EmailField(source='owner.email', read_only=True)
     
     class Meta:
-        model = User.teams.field.related_model
+        model = Team
         fields = [
             'id', 
             'name', 
@@ -61,6 +62,7 @@ class DetailedTeamSerializer(TeamSerializer):
     statistics = serializers.SerializerMethodField()
     
     class Meta(TeamSerializer.Meta):
+        model = Team
         fields = TeamSerializer.Meta.fields + ['members', 'statistics']
         
     def get_statistics(self, obj):

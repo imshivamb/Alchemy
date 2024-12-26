@@ -2,7 +2,7 @@ from .base import TimestampedSerializer
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from django.conf import settings
-from django.db import models
+from ..models import APIKey
 
 User = get_user_model()
 
@@ -10,7 +10,7 @@ class APIKeySerializer(TimestampedSerializer):
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
     
     class Meta:
-        model = User.api_keys.field.related_model
+        model = APIKey
         fields = [
             'id', 
             'user', 

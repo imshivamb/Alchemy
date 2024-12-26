@@ -8,7 +8,6 @@ from .views import (
     LoginView,
     LogoutView,
     UserViewSet,
-    TeamViewSet,
     APIKeyViewSet,
     PasswordResetView,
     EmailVerificationView,
@@ -24,7 +23,6 @@ from .views import (
 # API Routers
 router = DefaultRouter()
 router.register(r'users', UserViewSet, basename='user')
-router.register(r'teams', TeamViewSet, basename='team')
 router.register(r'api-keys', APIKeyViewSet, basename='api-key')
 
 # Admin routes
@@ -60,8 +58,8 @@ urlpatterns = [
         path('github/', GitHubLoginView.as_view(), name='github_login'),
     ])),
     
-    # Admin endpoints
-    path('admin/', include(admin_router.urls)),
+    # # Admin endpoints
+    # path('admin/', include(admin_router.urls)),
 ]
 
 # The final URLs will be:

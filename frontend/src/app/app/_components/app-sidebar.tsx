@@ -2,20 +2,21 @@
 
 import * as React from "react";
 import {
-  AudioWaveform,
-  BookOpen,
+  Home,
+  Workflow,
+  Puzzle,
   Bot,
-  Command,
-  Frame,
-  GalleryVerticalEnd,
-  Map,
-  PieChart,
+  Webhook,
+  LineChart,
+  Users,
+  Key,
   Settings2,
-  SquareTerminal,
+  GalleryVerticalEnd,
+  AudioWaveform,
+  Command,
 } from "lucide-react";
 
 import { NavMain } from "./nav-main";
-import { NavProjects } from "./nav-projects";
 import { NavUser } from "./nav-user";
 import { TeamSwitcher } from "./team-switcher";
 import {
@@ -26,7 +27,6 @@ import {
   SidebarRail,
 } from "@/components/ui/sidebar";
 
-// This is sample data.
 const data = {
   user: {
     name: "shadcn",
@@ -52,106 +52,64 @@ const data = {
   ],
   navMain: [
     {
-      title: "Playground",
-      url: "#",
-      icon: SquareTerminal,
+      title: "Home",
+      url: "/app/home",
+      icon: Home,
       isActive: true,
-      items: [
-        {
-          title: "History",
-          url: "#",
-        },
-        {
-          title: "Starred",
-          url: "#",
-        },
-        {
-          title: "Settings",
-          url: "#",
-        },
-      ],
     },
     {
-      title: "Models",
-      url: "#",
+      title: "Workflows",
+      url: "/app/workflows",
+      icon: Workflow,
+    },
+    {
+      title: "Integrations",
+      url: "/app/integrations",
+      icon: Puzzle,
+    },
+    {
+      title: "AI Tasks",
+      url: "/app/ai-tasks",
       icon: Bot,
-      items: [
-        {
-          title: "Genesis",
-          url: "#",
-        },
-        {
-          title: "Explorer",
-          url: "#",
-        },
-        {
-          title: "Quantum",
-          url: "#",
-        },
-      ],
     },
     {
-      title: "Documentation",
-      url: "#",
-      icon: BookOpen,
-      items: [
-        {
-          title: "Introduction",
-          url: "#",
-        },
-        {
-          title: "Get Started",
-          url: "#",
-        },
-        {
-          title: "Tutorials",
-          url: "#",
-        },
-        {
-          title: "Changelog",
-          url: "#",
-        },
-      ],
+      title: "Webhooks",
+      url: "/app/webhooks",
+      icon: Webhook,
+    },
+    {
+      title: "Analytics",
+      url: "/app/analytics",
+      icon: LineChart,
+    },
+    {
+      title: "Team",
+      url: "/app/team",
+      icon: Users,
+    },
+    {
+      title: "API Keys",
+      url: "/app/api-keys",
+      icon: Key,
     },
     {
       title: "Settings",
-      url: "#",
+      url: "/app/settings",
       icon: Settings2,
       items: [
         {
           title: "General",
-          url: "#",
+          url: "/app/settings/general",
         },
         {
-          title: "Team",
-          url: "#",
+          title: "Security",
+          url: "/app/settings/security",
         },
         {
-          title: "Billing",
-          url: "#",
-        },
-        {
-          title: "Limits",
-          url: "#",
+          title: "Notifications",
+          url: "/app/settings/notifications",
         },
       ],
-    },
-  ],
-  projects: [
-    {
-      name: "Design Engineering",
-      url: "#",
-      icon: Frame,
-    },
-    {
-      name: "Sales & Marketing",
-      url: "#",
-      icon: PieChart,
-    },
-    {
-      name: "Travel",
-      url: "#",
-      icon: Map,
     },
   ],
 };
@@ -164,10 +122,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavProjects projects={data.projects} />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

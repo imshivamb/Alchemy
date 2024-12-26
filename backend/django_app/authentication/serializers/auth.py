@@ -134,7 +134,8 @@ class UserSerializer(TimestampedSerializer):
             'is_verified', 
             'created_at',
             'updated_at',
-            'profile'
+            'profile',
+            'profile_picture'
         )
         read_only_fields = ('id', 'is_verified', 'created_at', 'updated_at', 'profile')
         extra_kwargs = {

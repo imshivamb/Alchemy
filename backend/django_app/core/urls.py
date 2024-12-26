@@ -6,6 +6,23 @@ from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 from django.conf import settings
+from authentication.views import TeamViewSet
+from rest_framework.routers import DefaultRouter
+
+
+team_router = DefaultRouter()
+team_router.register(r'teams', TeamViewSet, basename='team')
+
+# API URL Patterns
+api_v1_patterns = [
+    # Authentication URLs
+    path('auth/', include('authentication.urls')),
+    # Admin URLs
+    path('admin/', include('authentication.admin_urls')),
+    path('', include(team_router.urls)),
+    # Workflow URLs
+    path('', include('workflow_engine.urls')),
+]
 
 # Schema view configuration
 schema_view = get_schema_view(
@@ -26,18 +43,9 @@ schema_view = get_schema_view(
     ),
     public=True,
     permission_classes=(permissions.AllowAny,),
-    urlconf='core.urls',  # This is important!
 )
 
-# API URL Patterns
-api_v1_patterns = [
-    # Authentication URLs
-    path('auth/', include('authentication.urls')),
-    # Admin URLs
-    path('admin/', include('authentication.admin_urls')),
-    # Workflow URLs
-    path('', include('workflow_engine.urls')),
-]
+
 
 urlpatterns = [
     # Django Admin

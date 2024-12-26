@@ -23,7 +23,7 @@ class BaseActivitySerializer(TimestampedSerializer):
 class UserActivitySerializer(BaseActivitySerializer):
     """Serializer for user-specific activities"""
     class Meta(BaseActivitySerializer.Meta):
-        model = UserActivity  # Use the imported model directly
+        model = UserActivity
         fields = BaseActivitySerializer.Meta.fields + ['ip_address']
 
 class TeamActivitySerializer(BaseActivitySerializer):
@@ -31,5 +31,5 @@ class TeamActivitySerializer(BaseActivitySerializer):
     team_name = serializers.CharField(source='team.name', read_only=True)
     
     class Meta(BaseActivitySerializer.Meta):
-        model = TeamActivity  # Use the imported model directly
+        model = TeamActivity
         fields = BaseActivitySerializer.Meta.fields + ['team_name']
