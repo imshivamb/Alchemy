@@ -12,10 +12,12 @@ export default function AuthCallback() {
   const code = searchParams.get("code");
   const provider = params.provider as string;
   const [error, setError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
-    if (code && provider) {
-      AuthService.socialAuth(code)
+    if (code && provider && !isProcessing) {
+      setIsProcessing(true);
+      AuthService.socialAuth(provider, code)
         .then((response) => {
           AuthStore.setState({
             user: response.user,

@@ -49,12 +49,21 @@ export class AuthService {
         }
     }
 
-    static async socialAuth(code: string): Promise<AuthResponse> {
+    static async socialAuth(provider: string, code: string): Promise<AuthResponse> {
         try {
-            const response = await axiosInstance.post(`${API_BASE_URL}/auth/social/google/`, { 
-                code,
-                redirect_uri: process.env.NEXT_PUBLIC_GOOGLE_CALLBACK_URL
-            });
+            // Only send the code
+            const payload = { 
+                code: code
+            };
+            console.log('Sending payload to backend:', payload);
+            
+            const response = await axiosInstance.post(
+                `/auth/social/${provider}/`, 
+                payload
+            );
+            
+            // Log the response
+            console.log('Response from backend:', response.data);
     
             const authResponse: AuthResponse = {
                 tokens: {
@@ -63,7 +72,7 @@ export class AuthService {
                 },
                 user: response.data.user
             };
-            
+
             // Store tokens
             localStorage.setItem('accessToken', authResponse.tokens.access);
             localStorage.setItem('refreshToken', authResponse.tokens.refresh);
@@ -72,7 +81,10 @@ export class AuthService {
         } catch (error) {
             console.error('Social auth error:', error);
             if (axios.isAxiosError(error)) {
-                console.error('Response data:', error.response?.data);
+                console.error('Error response:', {
+                    status: error.response?.status,
+                    data: error.response?.data
+                });
             }
             throw error;
         }

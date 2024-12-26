@@ -202,8 +202,17 @@ SOCIALACCOUNT_PROVIDERS = {
         ],
         'AUTH_PARAMS': {
             'access_type': 'online',
+            'prompt': 'select_account'
         },
-        'OAUTH_PKCE_ENABLED': False,
+        'OAUTH_PKCE_ENABLED': True,
+        'FIELDS': [
+            'id',
+            'email',
+            'name',
+            'first_name',
+            'last_name',
+            'picture'
+        ],
     },
     'github': {
         'APP': {
