@@ -40,7 +40,7 @@ export interface UserProfile {
     usage_stats: UsageStats;
     plan_type: string;
     onboarding_completed: boolean;
-    account_status: string;
+    account_status: 'active' | 'suspended' | 'cancelled';
     created_at: string;
     updated_at: string;
 }
@@ -54,7 +54,8 @@ export interface User {
     is_verified: boolean,
     created_at: string,
     updated_at: string,
-    profile: UserProfile
+    profile: UserProfile,
+    profile_picture?: string;
 }
 
 

@@ -116,6 +116,10 @@ class UserViewSet(BaseViewSet):
     @action(detail=True, methods=['post'], url_path='profile-picture')
     def update_profile_picture(self, request, pk=None):
         """Update user's profile picture"""
+        import os
+        from django.conf import settings
+        from datetime import datetime
+
         user = self.get_object()
         
         if 'profile_picture' not in request.FILES:
@@ -125,6 +129,19 @@ class UserViewSet(BaseViewSet):
             )
             
         try:
+            # Create dynamic path based on current date
+            current_date = datetime.now()
+            upload_path = os.path.join(
+                settings.MEDIA_ROOT,
+                'profile_pics',
+                str(current_date.year),
+                str(current_date.month).zfill(2)
+            )
+            
+            # Create directories if they don't exist
+            os.makedirs(upload_path, exist_ok=True)
+            
+            # Now handle the file upload
             user.profile_picture = request.FILES['profile_picture']
             user.save()
             
@@ -134,6 +151,8 @@ class UserViewSet(BaseViewSet):
             })
             
         except Exception as e:
+            # Log the error for debugging
+            print(f"Error updating profile picture: {str(e)}")
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_400_BAD_REQUEST

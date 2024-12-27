@@ -34,19 +34,22 @@ DEBUG = os.getenv("DEBUG", "False") == "True"
 #Hosts allowed to access the application
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
-
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # CORS settings
 # CORS_ALLOWED_ORIGINS = [
 #     "http://localhost:3000", 
 # ]
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",  # Your Next.js frontend
+    "http://localhost:3000", 
 ]
+CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
 
 FRONTEND_URL = "http://localhost:3000"
 
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_ALL_ORIGINS = False
 
 CORS_ALLOW_METHODS = [
     'DELETE',
@@ -66,7 +69,13 @@ CORS_ALLOW_HEADERS = [
     'origin',
     'user-agent',
     'x-csrftoken',
+    'cache-control',
     'x-requested-with',
+    'access-control-allow-origin',  # Add this
+    'access-control-allow-headers', # Add this
+    'access-control-allow-methods',
+    'pragma',
+    'expires'
 ]
 # Application definition
 
@@ -270,8 +279,8 @@ SOCIAL_AUTH_PIPELINE = (
 
 # Middleware - software that processes requests/response
 MIDDLEWARE = [
-    "django.middleware.security.SecurityMiddleware",
     'corsheaders.middleware.CorsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -353,7 +362,8 @@ USE_TZ = True
 API_BASE_URL = 'http://127.0.0.1:8000' 
 
 # Static files configuration
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
