@@ -13,7 +13,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
 import { useUserStore } from "@/stores/user-store";
 import { AuthStore } from "@/stores/auth.store";
 import { timezones } from "@/lib/timezones";
@@ -24,6 +23,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   CommandEmpty,
@@ -35,7 +35,6 @@ import {
 } from "@/components/ui/command";
 
 export function ProfileForm() {
-  const { toast } = useToast();
   const { user } = AuthStore();
   const { updateProfile, isUpdating } = useUserStore();
 
@@ -58,20 +57,13 @@ export function ProfileForm() {
 
     try {
       await updateProfile(user.id, data);
-      toast({
-        title: "Profile updated",
-        description: (
-          <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
-            <code className="text-white">{JSON.stringify(data, null, 2)}</code>
-          </pre>
-        ),
+      toast.success("Profile updated successfully", {
+        description: "Your profile information has been saved.",
       });
     } catch (error) {
       console.error("Upload error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update profile. Please try again.",
-        variant: "destructive",
+      toast.error("Failed to update profile", {
+        description: "Please try again later.",
       });
     }
   }

@@ -6,10 +6,10 @@ import { ApiKeyBasic, ChangePasswordData } from "@/types/security.types";
 export class SecurityService {
     static async changePassword(userId: string, data: ChangePasswordData): Promise<void> {
         try {
-            await axiosInstance.put(
-                `/auth/users/${userId}/`,
+            await axiosInstance.post(
+                `/auth/users/${userId}/change-password`,
                 {
-                    password: data.new_password,
+                    new_password: data.new_password,
                     current_password: data.current_password
                 }
             );

@@ -13,6 +13,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 import uuid
+from django.utils import timezone
 from workflow_engine.models import Workflow
 from django.contrib.auth import get_user_model
 from .base import BaseViewSet
@@ -270,6 +271,63 @@ class UserViewSet(BaseViewSet):
         return Response({
             'message': 'Account reactivated successfully'
         })
+        
+    @swagger_auto_schema(
+    operation_description="Change user password",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        required=['current_password', 'new_password'],
+        properties={
+            'current_password': openapi.Schema(type=openapi.TYPE_STRING),
+            'new_password': openapi.Schema(type=openapi.TYPE_STRING),
+        }
+    ),
+    responses={
+        200: openapi.Response(
+            description="Password changed successfully",
+            schema=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                    properties={
+                        'message': openapi.Schema(type=openapi.TYPE_STRING)
+                    }
+                )
+            ),
+            400: "Invalid password/Validation error"
+        }
+    )
+    @action(detail=True, methods=['post'], url_path='change-password')
+    def change_password(self, request, pk=None):
+        """Change user's password"""
+        user = self.get_object()
+        
+        current_password = request.data.get('current_password')
+        new_password = request.data.get('new_password')
+        
+        if not current_password or not new_password:
+            return Response(
+                {'error': 'Both current and new password are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Verify current password
+        if not user.check_password(current_password):
+            return Response(
+                {'error': 'Current password is incorrect'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Set new password
+        user.set_password(new_password)
+        user.save()
+        
+        # Log password change
+        SecurityLog.objects.create(
+            user=user,
+            action='password_changed',
+            details={'changed_at': timezone.now().isoformat()}
+        )
+        
+        return Response({'message': 'Password changed successfully'})
 class UserMeView(APIView):
     permission_classes = [IsAuthenticated]
     

@@ -1,7 +1,5 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -13,17 +11,17 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
-import { AuthStore } from "@/stores/auth.store";
-import { useSecurityStore } from "@/stores/security.store";
+import { toast } from "sonner";
 import {
   changePasswordSchema,
   type ChangePasswordValues,
 } from "@/schemas/security-schema";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AuthStore } from "@/stores/auth.store";
+import { useSecurityStore } from "@/stores/security.store";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 
 export function PasswordSection() {
-  const { toast } = useToast();
   const { user } = AuthStore();
   const { changePassword, isLoading } = useSecurityStore();
 
@@ -41,27 +39,25 @@ export function PasswordSection() {
 
     try {
       await changePassword(user.id, data.current_password, data.new_password);
-      toast({
-        title: "Password updated",
-        description: "Your password has been successfully updated.",
+      toast.success("Password updated successfully", {
+        description: "Your password has been changed.",
       });
       form.reset();
     } catch (error) {
       console.error("Change password error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update password. Please try again.",
-        variant: "destructive",
+      toast.error("Failed to update password", {
+        description:
+          error instanceof Error ? error.message : "Please try again later.",
       });
     }
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Change Password</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <div>
+      <div>
+        <div className="mb-4 text-base font-semibold">Change Password</div>
+      </div>
+      <div>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
@@ -127,7 +123,7 @@ export function PasswordSection() {
             </Button>
           </form>
         </Form>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

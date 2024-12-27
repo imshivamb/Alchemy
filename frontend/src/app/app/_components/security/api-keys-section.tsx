@@ -12,8 +12,8 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { useSecurityStore } from "@/stores/security.store";
-import { formatDate } from "@/lib/utils";
 import Link from "next/link";
+import { formatDate } from "@/lib/format-date";
 
 export function ApiKeysSection() {
   const { recentApiKeys, fetchRecentApiKeys, isLoading } = useSecurityStore();
