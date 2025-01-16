@@ -37,3 +37,9 @@ export interface TeamUser {
     members: TeamMember[];
     statistics: TeamStatistics;
   }
+
+ export interface CreateTeamData {
+    name: string;
+    description?: string;
+    workspace: string;
+}

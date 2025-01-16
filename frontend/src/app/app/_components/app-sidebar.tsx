@@ -63,8 +63,8 @@ const data = {
       icon: LineChart,
     },
     {
-      title: "Team",
-      url: "/app/team",
+      title: "Teams",
+      url: "/app/teams",
       icon: Users,
     },
     {
@@ -88,6 +88,10 @@ const data = {
         {
           title: "Workspaces",
           url: "/app/settings/workspace",
+        },
+        {
+          title: "Teams",
+          url: "/app/settings/teams",
         },
         {
           title: "Notifications",
