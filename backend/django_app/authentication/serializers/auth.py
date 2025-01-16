@@ -101,24 +101,40 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         # Get token data
         data = super().validate(attrs)
+        
+        # Get request from context for client info
+        request = self.context.get('request')
+        client_info = self.get_client_info(request) if request else {}
 
-        user_data = UserSerializer(self.user).data
+        # Update response data with user info and session info
         data.update({
-            'user': user_data,
-            'workspaces': self.get_workspace_data()
+            'user': UserSerializer(self.user).data,
+            'session_info': client_info
         })
         
         return data
     
-    def get_workspace_data(self):
-        memberships = self.user.workspace_memberships.select_related('workspace').all()
-        return [{
-            'id': membership.workspace.id,
-            'name': membership.workspace.name,
-            'role': membership.role,
-            'is_owner': membership.workspace.owner_id == self.user.id,
-            'plan_type': membership.workspace.plan_type
-        } for membership in memberships]
+    def get_client_info(self, request):
+        """Get client session information"""
+        return {
+            'ip_address': request.META.get('HTTP_X_FORWARDED_FOR', '').split(',')[0] 
+                        or request.META.get('REMOTE_ADDR'),
+            'user_agent': request.META.get('HTTP_USER_AGENT', ''),
+            'device_type': self.get_device_type(request),
+            'location': self._get_location_from_ip(request)
+        }
+
+    def _get_location_from_ip(self, request):
+        # Implement IP geolocation logic here
+        return 'Unknown'
+
+    def get_device_type(self, request):
+        user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
+        if 'mobile' in user_agent:
+            return 'mobile'
+        elif 'tablet' in user_agent:
+            return 'tablet'
+        return 'desktop'
 
 class UserSerializer(TimestampedSerializer):
     password = serializers.CharField(
@@ -148,6 +164,7 @@ class UserSerializer(TimestampedSerializer):
             'is_verified', 
             'created_at',
             'updated_at',
+            'last_login',
             'profile',
             'profile_picture',
             'workspaces'

@@ -1,7 +1,8 @@
 export interface Workspace {
     id: string;
     name: string;
-    owner: string;
+    role: 'admin' | 'member';
+    is_owner: boolean;
     plan_type: 'free' | 'business' | 'enterprise';
     settings: WorkspaceSettings;
     created_at: string;
@@ -38,12 +39,34 @@ export interface UpdateWorkspaceData {
 }
 
 export interface WorkspaceSwitcherProps {
-    workspaces: {
-      id: string;
-      name: string;
-      role: string;
-      is_owner: boolean;
-      plan_type: 'free' | 'business' | 'enterprise';
-    }[];
+    workspaces: Workspace[];
     onWorkspaceChange?: (workspaceId: string) => void;
+}
+
+export interface WorkspaceMember {
+    id: string;
+    user: {
+        id: string;
+        email: string;
+        first_name: string;
+        last_name: string;
+    };
+    workspace: string;
+    role: 'admin' | 'member';
+    joined_at: string;
+    invited_by: {
+        id: string;
+        email: string;
+        first_name: string;
+        last_name: string;
+    };
+}
+
+export interface CreateWorkspaceData {
+    name: string;
+}
+
+export interface AddWorkspaceMemberData {
+    email: string;
+    role: 'admin' | 'member';
 }

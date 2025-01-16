@@ -97,7 +97,7 @@ class WorkspaceViewSet(viewsets.ModelViewSet):
                 'limit': self._get_member_limit(workspace)
             },
             'teams': {
-                'total': workspace.teams.count(),
+                'total': workspace.workspace_teams.count(),
                 'limit': self._get_team_limit(workspace)
             }
         }

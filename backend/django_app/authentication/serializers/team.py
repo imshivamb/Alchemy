@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from django.conf import settings
 from django.db import models
-from ..models import Team, TeamMembership
+from ..models import Team, TeamMembership, Workspace
 
 User = get_user_model()
 
@@ -25,6 +25,7 @@ class TeamMembershipDetailSerializer(TimestampedSerializer):
 class TeamSerializer(TimestampedSerializer):
     members_count = serializers.SerializerMethodField()
     owner_email = serializers.EmailField(source='owner.email', read_only=True)
+    workspace = serializers.UUIDField(write_only=True)
     
     class Meta:
         model = Team
@@ -33,25 +34,50 @@ class TeamSerializer(TimestampedSerializer):
             'name', 
             'description', 
             'owner_email',
-            'members_count', 
+            'members_count',
+            'workspace',
             'created_at', 
             'updated_at'
         ]
         read_only_fields = ['owner_email', 'created_at', 'updated_at']
+        extra_kwargs = {
+            'name': {'required': False},
+            'workspace': {'write_only': True}
+        }
     
     def get_members_count(self, obj):
         return obj.members.count()
 
     def validate(self, attrs):
-        user = self.context['request'].user
-        if not user.profile.is_paid_plan:
-            teams_count = user.owned_teams.count()
-            if teams_count >= settings.FREE_PLAN_TEAM_LIMIT:
-                raise serializers.ValidationError(
-                    "Free plan users can only create up to "
-                    f"{settings.FREE_PLAN_TEAM_LIMIT} teams."
-                )
+        request = self.context['request']
+        if request.method == 'POST':
+            if 'name' not in attrs:
+                raise serializers.ValidationError({'name': 'This field is required.'})
+            
+            user = request.user
+            if not user.profile.is_paid_plan:
+                teams_count = user.owned_teams.count()
+                if teams_count >= settings.FREE_PLAN_TEAM_LIMIT:
+                    raise serializers.ValidationError(
+                        "Free plan users can only create up to "
+                        f"{settings.FREE_PLAN_TEAM_LIMIT} teams."
+                    )
         return attrs
+
+    def update(self, instance, validated_data):
+        workspace_uuid = validated_data.pop('workspace', None)
+        if workspace_uuid:
+            try:
+                # Fetch the Workspace instance
+                workspace = Workspace.objects.get(id=workspace_uuid)
+                validated_data['workspace'] = workspace
+            except Workspace.DoesNotExist:
+                raise serializers.ValidationError({'workspace': 'Invalid workspace ID provided.'})
+        
+        # Proceed with the default update logic
+        return super().update(instance, validated_data)
+
+
 
 class DetailedTeamSerializer(TeamSerializer):
     members = TeamMembershipDetailSerializer(

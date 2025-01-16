@@ -133,6 +133,8 @@ API_KEY_LIMITS = {
 }
 DEFAULT_API_KEY_LIMIT = 2
 
+FREE_PLAN_TEAM_LIMIT = 2
+
 # Add plan-specific workflow limits
 WORKFLOW_LIMITS = {
     'free': 3,
@@ -400,7 +402,7 @@ REST_FRAMEWORK = {
     'ALLOWED_VERSIONS': ['v1'],
 }
 
-APPEND_SLASH = True
+APPEND_SLASH = False
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),

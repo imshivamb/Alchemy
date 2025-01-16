@@ -11,9 +11,6 @@ import {
   Users,
   Key,
   Settings2,
-  GalleryVerticalEnd,
-  AudioWaveform,
-  Command,
 } from "lucide-react";
 
 import { NavMain } from "./nav-main";
@@ -33,23 +30,6 @@ const data = {
     email: "m@example.com",
     avatar: "/avatars/shadcn.jpg",
   },
-  teams: [
-    {
-      name: "Acme Inc",
-      logo: GalleryVerticalEnd,
-      plan: "Enterprise",
-    },
-    {
-      name: "Acme Corp.",
-      logo: AudioWaveform,
-      plan: "Startup",
-    },
-    {
-      name: "Evil Corp.",
-      logo: Command,
-      plan: "Free",
-    },
-  ],
   navMain: [
     {
       title: "Home",
@@ -106,6 +86,10 @@ const data = {
           url: "/app/settings/security",
         },
         {
+          title: "Workspaces",
+          url: "/app/settings/workspace",
+        },
+        {
           title: "Notifications",
           url: "/app/settings/notifications",
         },
@@ -118,7 +102,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <WorkspaceSwitcher workspaces={data.teams} />
+        <WorkspaceSwitcher />
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />

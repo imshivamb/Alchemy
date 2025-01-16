@@ -1,8 +1,8 @@
-from ..models import Team, TeamMembership, TeamActivity, Workspace
+from ..models import Team, TeamMembership, TeamActivity, Workspace, User
 from ..serializers.team import (
     TeamSerializer, 
     TeamMembershipDetailSerializer,
-    
+    DetailedTeamSerializer
 )
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -10,19 +10,64 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import viewsets, status
 from django.core.exceptions import ValidationError, PermissionDenied
-
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import NotFound
 from .base import BaseViewSet
 from django.db import models
 
 class TeamViewSet(BaseViewSet):
-    serializer_class = TeamSerializer
     permission_classes = [IsAuthenticated]
     
+    def get_serializer_class(self):
+        """Return appropriate serializer based on the action"""
+        if self.action == 'retrieve':
+            return DetailedTeamSerializer
+        elif self.action == 'list':
+            return TeamSerializer
+        elif self.action in ['create', 'update', 'partial_update']:
+            return TeamSerializer
+        elif self.action == 'add_member':
+            return TeamMembershipDetailSerializer
+            
+        return TeamSerializer
+
+    def get_queryset(self):
+        """Optimized queryset based on action"""
+        workspace_id = self.request.query_params.get('workspace')
+        
+        if not workspace_id:
+            raise ValidationError({'workspace': 'Workspace ID is required'})
+
+        queryset = Team.objects.filter(
+            models.Q(owner=self.request.user) | 
+            models.Q(members=self.request.user),
+            workspace_id=workspace_id,
+            workspace__members=self.request.user,
+        ).distinct()
+
+        if self.action == 'retrieve':
+            return queryset.select_related('owner').prefetch_related(
+                'members',
+                'memberships',
+                'memberships__user'
+            )
+        elif self.action == 'list':
+            return queryset.select_related('owner')
+            
+        return queryset
+
     @swagger_auto_schema(
         operation_summary="List teams",
         operation_description="Get list of teams user belongs to",
+        manual_parameters=[
+            openapi.Parameter(
+                'workspace',
+                openapi.IN_QUERY,
+                description="Workspace ID (required)",
+                type=openapi.TYPE_STRING,
+                required=True
+            )
+        ],
         responses={200: TeamSerializer(many=True)},
         tags=['Teams']
     )
@@ -43,13 +88,83 @@ class TeamViewSet(BaseViewSet):
         operation_summary="Get team details",
         operation_description="Get detailed information about a specific team",
         responses={
-            200: TeamSerializer,
+            200: DetailedTeamSerializer,
             404: 'Team not found'
         },
         tags=['Teams']
     )
     def retrieve(self, request, *args, **kwargs):
         return super().retrieve(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_summary="Update team",
+        operation_description="Update team details (requires admin permission)",
+        request_body=TeamSerializer,
+        responses={
+            200: TeamSerializer,
+            403: 'Only team admins can update team',
+            404: 'Team not found'
+        },
+        tags=['Teams']
+    )
+    def update(self, request, *args, **kwargs):
+        team = self.get_object()
+        if not team.memberships.filter(user=request.user, role='admin').exists():
+            return Response(
+                {'error': 'Only team admins can update team'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().update(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_summary="Partially update team",
+        operation_description="Partially update team details (requires admin permission)",
+        request_body=TeamSerializer,
+        responses={
+            200: TeamSerializer,
+            403: 'Only team admins can update team',
+            404: 'Team not found'
+        },
+        tags=['Teams']
+    )
+    def partial_update(self, request, *args, **kwargs):
+        team = self.get_object()
+        if not team.memberships.filter(user=request.user, role='admin').exists():
+            return Response(
+                {'error': 'Only team admins can update team'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().partial_update(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_summary="Delete team",
+        operation_description="Delete team (requires admin permission)",
+        responses={
+            204: 'Team deleted successfully',
+            403: 'Only team admins can delete team',
+            404: 'Team not found'
+        },
+        tags=['Teams']
+    )
+    def destroy(self, request, *args, **kwargs):
+        team = self.get_object()
+        if not team.memberships.filter(user=request.user, role='admin').exists():
+            return Response(
+                {'error': 'Only team admins can delete team'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+            
+        TeamActivity.objects.create(
+            team=team,
+            user=request.user,
+            action='team_deleted',
+            details={
+                'team_name': team.name,
+                'workspace_id': str(team.workspace.id)
+            }
+        )
+        
+        return super().destroy(request, *args, **kwargs)
 
     @swagger_auto_schema(
         operation_summary="Add team member",
@@ -130,27 +245,6 @@ class TeamViewSet(BaseViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-    def get_queryset(self):
-        """
-        Return teams where user is either owner or member,
-        filtered by workspace which is required
-        """
-        user = self.request.user
-        workspace_id = self.request.query_params.get('workspace')
-        
-        if not workspace_id:
-            return Response(
-                {'error': 'Workspace ID is required'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-            
-        return Team.objects.filter(
-            models.Q(owner=user) | models.Q(members=user),
-            workspace_id=workspace_id,
-            workspace__members=user,
-           
-        ).distinct()
-
     def perform_create(self, serializer):
         """Create new team within workspace after validations"""
         workspace_id = self.request.data.get('workspace')
@@ -165,7 +259,7 @@ class TeamViewSet(BaseViewSet):
                 raise PermissionDenied("Must be a workspace member to create team")
             
             # Check workspace team limit
-            current_teams = workspace.teams.count()
+            current_teams = workspace.workspace_teams.count()
             team_limit = {
                 'free': 2,
                 'business': 10,
