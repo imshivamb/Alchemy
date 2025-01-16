@@ -1,5 +1,5 @@
 from ..serializers.profile import UserProfileSerializer
-from ..serializers.auth import UserSerializer
+from ..serializers.auth import UserSerializer, UserUpdateSerializer
 from ..models import UserProfile, SecurityLog, APIKey
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -27,6 +27,11 @@ class UserViewSet(BaseViewSet):
     """
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
+    
+    def get_serializer_class(self):
+        if self.action in ['update', 'partial_update']:
+            return UserUpdateSerializer
+        return UserSerializer
     
     def get_queryset(self):
         """

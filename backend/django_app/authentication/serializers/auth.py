@@ -102,10 +102,23 @@ class EmailTokenObtainPairSerializer(TokenObtainPairSerializer):
         # Get token data
         data = super().validate(attrs)
 
-        # Add user data to response
-        data['user'] = UserSerializer(self.user).data
-
+        user_data = UserSerializer(self.user).data
+        data.update({
+            'user': user_data,
+            'workspaces': self.get_workspace_data()
+        })
+        
         return data
+    
+    def get_workspace_data(self):
+        memberships = self.user.workspace_memberships.select_related('workspace').all()
+        return [{
+            'id': membership.workspace.id,
+            'name': membership.workspace.name,
+            'role': membership.role,
+            'is_owner': membership.workspace.owner_id == self.user.id,
+            'plan_type': membership.workspace.plan_type
+        } for membership in memberships]
 
 class UserSerializer(TimestampedSerializer):
     password = serializers.CharField(
@@ -120,6 +133,7 @@ class UserSerializer(TimestampedSerializer):
         style={'input_type': 'password'}
     )
     profile = UserProfileSerializer(read_only=True)
+    workspaces = serializers.SerializerMethodField()
     class Meta:
         model = User
         fields = (
@@ -135,9 +149,10 @@ class UserSerializer(TimestampedSerializer):
             'created_at',
             'updated_at',
             'profile',
-            'profile_picture'
+            'profile_picture',
+            'workspaces'
         )
-        read_only_fields = ('id', 'is_verified', 'created_at', 'updated_at', 'profile')
+        read_only_fields = ('id', 'is_verified', 'created_at', 'updated_at', 'profile', 'workspaces')
         extra_kwargs = {
             'email': {'required': True},
             'first_name': {'required': True},
@@ -145,6 +160,16 @@ class UserSerializer(TimestampedSerializer):
             'phone_number': {'required': False},
             'organization': {'required': False},
         }
+    
+    def get_workspaces(self, obj):
+        """Get all workspaces user belongs to with their role"""
+        memberships = obj.workspace_memberships.select_related('workspace').all()
+        return [{
+            'id': membership.workspace.id,
+            'name': membership.workspace.name,
+            'role': membership.role,
+            'is_owner': membership.workspace.owner_id == obj.id
+        } for membership in memberships]
 
     def validate(self, attrs):
         if attrs.get('password') != attrs.get('confirm_password'):
@@ -182,6 +207,38 @@ class UserSerializer(TimestampedSerializer):
         
         user.profile.objects.create(user=user, **profile_data)
         return user
+    
+class UserUpdateSerializer(TimestampedSerializer):
+    class Meta:
+        model = User
+        fields = (
+            'id', 
+            'email',
+            'first_name', 
+            'last_name', 
+            'phone_number', 
+            'organization',
+            'is_verified', 
+            'created_at',
+            'updated_at',
+            'profile',
+            'profile_picture'
+        )
+        read_only_fields = ('id', 'is_verified', 'created_at', 'updated_at', 'profile')
+        extra_kwargs = {
+            'email': {'required': False},
+            'first_name': {'required': False},
+            'last_name': {'required': False},
+            'phone_number': {'required': False},
+            'organization': {'required': False},
+        }
+
+    def validate_email(self, value):
+        instance = getattr(self, 'instance', None)
+        if instance and instance.email != value:
+            if User.objects.filter(email=value).exists():
+                raise serializers.ValidationError("User with this email already exists.")
+        return value
 
 class PasswordResetSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)

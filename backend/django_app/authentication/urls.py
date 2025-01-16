@@ -17,13 +17,15 @@ from .views import (
     AdminUserViewSet,
     AdminTeamViewSet,
     PasswordResetConfirmView,
-    UserMeView
+    UserMeView,
+    WorkspaceViewSet
 )
 
 # API Routers
 router = DefaultRouter()
 router.register(r'users', UserViewSet, basename='user')
 router.register(r'api-keys', APIKeyViewSet, basename='api-key')
+router.register(r'workspaces', WorkspaceViewSet, basename='workspace')
 
 # Admin routes
 admin_router = DefaultRouter()

@@ -16,6 +16,7 @@ from django.contrib.auth.tokens import default_token_generator
 from rest_framework.decorators import api_view
 from ..models.activity import SecurityLog, UserActivity
 from ..models.profile import UserProfile
+from ..models.workspace import Workspace, WorkspaceMembership
 from rest_framework.views import APIView
 from ..serializers.auth import (
     EmailTokenObtainPairSerializer, 
@@ -106,6 +107,25 @@ class RegisterView(generics.CreateAPIView):
             try:
                 # Create user
                 user = serializer.save()
+                
+                organization_name = request.data.get('organization') or f"{user.first_name}'s Workspace"
+                workspace = Workspace.objects.create(
+                    name=organization_name,
+                    owner=user,
+                    plan_type='free',
+                    settings={
+                        'default_timezone': user.profile.timezone,
+                        'created_from': 'registration'
+                    }
+                )
+
+                # Add user as workspace admin
+                WorkspaceMembership.objects.create(
+                    workspace=workspace,
+                    user=user,
+                    role='admin',
+                    invited_by=user
+                )
                 # Generate and send verification email
                 user.generate_verification_token()
                 user.send_verification_email()
@@ -117,12 +137,20 @@ class RegisterView(generics.CreateAPIView):
                     details={
                         'ip_address': request.META.get('REMOTE_ADDR'),
                         'user_agent': request.META.get('HTTP_USER_AGENT', ''),
-                        'registration_method': 'email'
+                        'registration_method': 'email',
+                        'default_workspace_created': str(workspace.id)
                     }
                 )
                 
+                user_data = UserSerializer(user).data
+                user_data['default_workspace'] = {
+                    'id': workspace.id,
+                    'name': workspace.name,
+                    'role': 'admin'
+                }
+                
                 return Response(
-                    UserSerializer(user).data,
+                    user_data,
                     status=status.HTTP_201_CREATED
                 )
                 

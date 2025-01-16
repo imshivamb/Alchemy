@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/command";
 
 export function ProfileForm() {
-  const { user } = AuthStore();
+  const { user, refreshUserProfile } = AuthStore();
   const { updateProfile, isUpdating } = useUserStore();
 
   const form = useForm<ProfileFormValues>({
@@ -57,6 +57,7 @@ export function ProfileForm() {
 
     try {
       await updateProfile(user.id, data);
+      refreshUserProfile();
       toast.success("Profile updated successfully", {
         description: "Your profile information has been saved.",
       });

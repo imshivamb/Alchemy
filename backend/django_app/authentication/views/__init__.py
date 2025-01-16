@@ -4,3 +4,4 @@ from .user import UserViewSet, UserMeView, UserLimitsView
 from .team import TeamViewSet
 from .admin import AdminUserViewSet, AdminTeamViewSet
 from .security import APIKeyViewSet
+from .workspace import WorkspaceViewSet

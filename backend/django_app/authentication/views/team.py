@@ -1,7 +1,6 @@
-from ..models import Team, TeamMembership, TeamActivity
+from ..models import Team, TeamMembership, TeamActivity, Workspace
 from ..serializers.team import (
     TeamSerializer, 
-    DetailedTeamSerializer,
     TeamMembershipDetailSerializer,
     
 )
@@ -10,11 +9,16 @@ from drf_yasg import openapi
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import viewsets, status
+from django.core.exceptions import ValidationError, PermissionDenied
+
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import NotFound
 from .base import BaseViewSet
 from django.db import models
 
 class TeamViewSet(BaseViewSet):
     serializer_class = TeamSerializer
+    permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
         operation_summary="List teams",
@@ -76,55 +80,124 @@ class TeamViewSet(BaseViewSet):
     )
     @action(detail=True, methods=['post'])
     def add_member(self, request, pk=None):
-        # Existing implementation remains the same
+        """Add member to team with workspace validation"""
         team = self.get_object()
-        
         if not team.memberships.filter(user=request.user, role='admin').exists():
             return Response(
                 {'error': 'Only team admins can add members'},
                 status=status.HTTP_403_FORBIDDEN
             )
-            
-        serializer = TeamMembershipSerializer(data={
-            'user': request.data.get('user_id'),
-            'team': team.id,
-            'role': request.data.get('role', 'viewer')
-        })
         
-        if serializer.is_valid():
-            membership = serializer.save()
+        user_id = request.data.get('user_id')
+        try:
+            user_to_add = User.objects.get(id=user_id)
+            
+            # Check if user is workspace member
+            if not team.workspace.members.filter(id=user_to_add.id).exists():
+                return Response(
+                    {'error': 'User must be a workspace member to join team'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Check team member limit
+            if team.members.count() >= team.max_members:
+                return Response(
+                    {'error': 'Team member limit reached'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            membership = TeamMembership.objects.create(
+                user=user_to_add,
+                team=team,
+                role=request.data.get('role', 'viewer')
+            )
             
             TeamActivity.objects.create(
                 team=team,
                 user=request.user,
                 action='member_added',
                 details={
-                    'added_user_id': str(membership.user.id),
+                    'added_user_id': str(user_to_add.id),
                     'role': membership.role
                 }
             )
             
-            return Response(serializer.data)
+            return Response(TeamMembershipDetailSerializer(membership).data)
             
-        return Response(serializer.errors, status=400)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'User not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
     def get_queryset(self):
+        """
+        Return teams where user is either owner or member,
+        filtered by workspace which is required
+        """
+        user = self.request.user
+        workspace_id = self.request.query_params.get('workspace')
+        
+        if not workspace_id:
+            return Response(
+                {'error': 'Workspace ID is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
         return Team.objects.filter(
-            models.Q(members=self.request.user) | 
-            models.Q(owner=self.request.user)
+            models.Q(owner=user) | models.Q(members=user),
+            workspace_id=workspace_id,
+            workspace__members=user,
+           
         ).distinct()
-        
+
     def perform_create(self, serializer):
-        team = serializer.save(owner=self.request.user)
-        
-        TeamMembership.objects.create(
-            user=self.request.user,
-            team=team,
-            role='admin'
-        )
-        
-        TeamActivity.objects.create(
-            team=team,
-            user=self.request.user,
-            action='team_created'
-        )
+        """Create new team within workspace after validations"""
+        workspace_id = self.request.data.get('workspace')
+        if not workspace_id:
+            raise ValidationError("Workspace ID is required")
+            
+        try:
+            workspace = Workspace.objects.get(id=workspace_id)
+            
+            # Check if user is workspace member
+            if not workspace.members.filter(id=self.request.user.id).exists():
+                raise PermissionDenied("Must be a workspace member to create team")
+            
+            # Check workspace team limit
+            current_teams = workspace.teams.count()
+            team_limit = {
+                'free': 2,
+                'business': 10,
+                'enterprise': 50
+            }.get(workspace.plan_type, 2)
+            
+            if current_teams >= team_limit:
+                raise ValidationError(f"Workspace team limit ({team_limit}) reached")
+            
+            # Create team
+            team = serializer.save(
+                owner=self.request.user,
+                workspace=workspace
+            )
+            
+            # Add creator as admin
+            TeamMembership.objects.create(
+                user=self.request.user,
+                team=team,
+                role='admin'
+            )
+            
+            # Log activity
+            TeamActivity.objects.create(
+                team=team,
+                user=self.request.user,
+                action='team_created',
+                details={
+                    'workspace_id': str(workspace.id),
+                    'team_name': team.name
+                }
+            )
+            
+        except Workspace.DoesNotExist:
+            raise NotFound("Workspace not found")

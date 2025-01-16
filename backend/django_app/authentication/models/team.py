@@ -15,12 +15,18 @@ class Team(BaseModel):
         on_delete=models.CASCADE, 
         related_name='owned_teams'
     )
+    workspace = models.ForeignKey(
+        'Workspace',
+        on_delete=models.CASCADE,
+        related_name='workspace_teams',
+        null=True,
+        blank=True
+    )
     members = models.ManyToManyField(
         'User', 
         related_name='teams', 
         through='TeamMembership',
         through_fields=('team', 'user')
-        
     )
     max_members = models.PositiveIntegerField(
         default=5,
@@ -37,20 +43,41 @@ class Team(BaseModel):
         verbose_name_plural = _('teams')
         indexes = [
             models.Index(fields=['owner', 'is_active']),
+            models.Index(fields=['workspace', 'is_active']),
         ]
 
     def clean(self):
+        super().clean()
         if self.members.count() > self.max_members:
             raise ValidationError(_("Team has exceeded maximum member limit"))
+        
+        # Add workspace member validation here instead of constraint
+        # if self.workspace and self.members.exists():
+        #     workspace_member_ids = set(self.workspace.members.values_list('id', flat=True))
+        #     team_member_ids = set(self.members.values_list('id', flat=True))
+        #     if not team_member_ids.issubset(workspace_member_ids):
+        #         raise ValidationError(_("All team members must be workspace members"))
 
     def add_member(self, user, role='viewer'):
+        # if not self.workspace.members.filter(id=user.id).exists():
+        #     raise ValidationError(_("User must be a workspace member to join team"))
+            
         if self.members.count() >= self.max_members:
             raise ValidationError(_("Cannot add more members - team is at capacity"))
+            
         return TeamMembership.objects.create(
             team=self,
             user=user,
             role=role
         )
+    def _get_workspace_team_limit(self):
+        """Get team limit based on workspace plan"""
+        limits = {
+            'free': 2,
+            'business': 10,
+            'enterprise': 50
+        }
+        return limits.get(self.workspace.plan_type, 2)
 
 class TeamMembership(BaseModel):
     ROLE_CHOICES = [
