@@ -39,7 +39,7 @@ app.add_middleware(
 
 #Including Routers
 app.include_router(ai.router, prefix="/api/v1/ai", tags=["AI Processing"])
-app.include_router(webhook.router, prefix="/api/v1/webhooks", tags=["Webhooks"])
+app.include_router(webhook.router, prefix="/api/v1", tags=["Webhooks"])
 app.include_router(web3.router, prefix="/api/v1/web3", tags=["Web3"])
 
 app.include_router(monitoring.router, prefix="/api/v1/monitoring", tags=["Monitoring"])
