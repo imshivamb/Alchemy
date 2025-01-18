@@ -11,6 +11,7 @@ import {
   Users,
   Key,
   Settings2,
+  Plus,
 } from "lucide-react";
 
 import { NavMain } from "./nav-main";
@@ -23,6 +24,8 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 const data = {
   user: {
@@ -103,10 +106,18 @@ const data = {
 };
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const router = useRouter();
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <WorkspaceSwitcher />
+        <Button
+          className="w-full"
+          size="lg"
+          onClick={() => router.push("/editor")}
+        >
+          <Plus className="mr-2 h-4 w-4" /> Create Workflow
+        </Button>
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />

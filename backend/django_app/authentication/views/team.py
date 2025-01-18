@@ -34,17 +34,24 @@ class TeamViewSet(BaseViewSet):
     def get_queryset(self):
         """Optimized queryset based on action"""
         workspace_id = self.request.query_params.get('workspace')
+        user = self.request.user
         
-        if not workspace_id:
-            raise ValidationError({'workspace': 'Workspace ID is required'})
+        # Require workspace param only for list action
+        if self.action == 'list':
+            if not workspace_id:
+                raise ValidationError({'workspace': 'Workspace ID is required for listing teams'})
 
-        queryset = Team.objects.filter(
-            models.Q(owner=self.request.user) | 
-            models.Q(members=self.request.user),
-            workspace_id=workspace_id,
-            workspace__members=self.request.user,
-        ).distinct()
+        # Get teams through memberships table to avoid duplicates
+        queryset = Team.objects.filter(memberships__user=user)
 
+        # Apply workspace filter 
+        if workspace_id:
+            queryset = queryset.filter(
+                workspace_id=workspace_id,
+                workspace__members=user
+            )
+
+        # Optimize queries based on action
         if self.action == 'retrieve':
             return queryset.select_related('owner').prefetch_related(
                 'members',
@@ -53,7 +60,7 @@ class TeamViewSet(BaseViewSet):
             )
         elif self.action == 'list':
             return queryset.select_related('owner')
-            
+                    
         return queryset
 
     @swagger_auto_schema(

@@ -5,3 +5,4 @@ from .activity import TeamActivitySerializer, UserActivitySerializer
 from .security import APIKeySerializer
 from .audit import TeamAuditLogSerializer
 from .export import UserExportSerializer
+from .admin import DetailedWorkspaceSerializer, SecurityLogSerializer, SystemHealthSerializer, AnalyticsOverviewSerializer

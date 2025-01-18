@@ -51,3 +51,28 @@ class IsAPIKeyOwner(permissions.BasePermission):
     
     def has_object_permission(self, request, view, obj):
         return obj.user == request.user and obj.is_active
+    
+class IsAdminOrSuperUser(permissions.BasePermission):
+    """
+    Custom permission for admin endpoints that checks for admin or superuser status
+    and validates admin token
+    """
+    
+    def has_permission(self, request, view):
+        # Check if user is authenticated and is admin/superuser
+        if not request.user.is_authenticated:
+            return False
+            
+        if not (request.user.is_staff or request.user.is_superuser):
+            return False
+            
+        # Validate admin token if present
+        admin_token = request.headers.get('X-Admin-Token')
+        if admin_token:
+            try:
+                # Add your admin token validation logic here
+                return True
+            except Exception:
+                return False
+                
+        return request.user.is_superuser

@@ -1,72 +1,68 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useWorkflowState } from "@/stores/workflow.store";
-import { WorkflowNode } from "@/types/workflow.types";
-import { AlertCircle } from "lucide-react";
-import React from "react";
-import { ConditionConfig } from "../config-panels/condition-config-panel";
-import ActionConfig from "../config-panels/action-config-panel";
-import TriggerConfig from "../config-panels/trigger-config-panel";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+import { apps } from "@/config/apps.config";
+import WebhookConfig from "../config-panels/trigger/webhook-config";
+import { Settings } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import EmailConfig from "../config-panels/trigger/email-config";
+import { WorkflowNode, TriggerNode } from "@/types/workflow.types";
 
-type ConfigPanelProps = {
-  selectedNode: WorkflowNode | null;
-};
+interface ConfigurationPanelProps {
+  node: WorkflowNode;
+  onUpdate: (nodeId: string, data: Partial<WorkflowNode["data"]>) => void;
+}
 
-const ConfigPanel = ({ selectedNode }: ConfigPanelProps) => {
-  const { updateNode } = useWorkflowState();
+export const ConfigurationPanel = ({
+  node,
+  onUpdate,
+}: ConfigurationPanelProps) => {
+  // Early return if not a trigger node
+  if (node.type !== "trigger") return null;
 
-  if (!selectedNode) {
-    return (
-      <Card className="h-full">
-        <CardContent className="p-4">
-          <div className="flex flex-col items-center justify-center h-full text-gray-500">
-            <AlertCircle className="size-8 mb-2" />
-            <p>Select a Node to configure</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  // Now TypeScript knows this is a TriggerNode
+  const triggerNode = node as TriggerNode;
+  const app = apps.find((a) => a.id === triggerNode.data.appId);
+  const trigger = app?.triggers?.find(
+    (t) => t.id === triggerNode.data.triggerId
+  );
 
-  const handleNodeUpdate = (data: any) => {
-    updateNode(selectedNode.id, data);
-  };
+  if (!app || !trigger) return null;
+
   return (
-    <Card className="h-full overflow-auto">
-      <CardHeader className="sticky top-0 bg-background z-10 pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Configure Node</CardTitle>
-          <Badge
-            variant={selectedNode.data.isValid ? "default" : "destructive"}
-          >
-            {selectedNode.type}
-          </Badge>
+    <div className="h-full flex flex-col">
+      <div className="p-4 border-b flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <app.icon className="h-5 w-5" />
+          <div>
+            <h3 className="font-medium">{trigger.name}</h3>
+            <p className="text-sm text-gray-500">{app.name}</p>
+          </div>
         </div>
-        {!selectedNode.data.isValid && (
-          <Alert variant="destructive" className="mt-2">
-            <AlertDescription>
-              {selectedNode.data.errorMessage || "Invalid configuration"}
-            </AlertDescription>
-          </Alert>
-        )}
-      </CardHeader>
-      <CardContent className="p-4">
-        {selectedNode.type === "trigger" && (
-          <TriggerConfig data={selectedNode.data} onChange={handleNodeUpdate} />
-        )}
-        {selectedNode.type === "action" && (
-          <ActionConfig data={selectedNode.data} onChange={handleNodeUpdate} />
-        )}
-        {selectedNode.type === "condition" && (
-          <ConditionConfig
-            data={selectedNode.data}
-            onChange={handleNodeUpdate}
+        <Button variant="ghost" size="sm">
+          <Settings className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <div className="flex-1 overflow-auto p-4">
+        {app.id === "webhook" && (
+          <WebhookConfig
+            config={triggerNode.data.config.webhook}
+            onChange={(webhookConfig) =>
+              onUpdate(triggerNode.id, {
+                config: { ...triggerNode.data.config, webhook: webhookConfig },
+              })
+            }
           />
         )}
-      </CardContent>
-    </Card>
+        {app.id === "gmail" && trigger.id === "new_email" && (
+          <EmailConfig
+            config={triggerNode.data.config.email}
+            onChange={(emailConfig) =>
+              onUpdate(triggerNode.id, {
+                config: { ...triggerNode.data.config, email: emailConfig },
+              })
+            }
+          />
+        )}
+      </div>
+    </div>
   );
 };
-
-export default ConfigPanel;

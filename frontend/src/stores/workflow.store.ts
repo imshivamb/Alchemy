@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { WorkflowNode } from "@/types/workflow.types";
+import { AppConnection, WorkflowNode } from "@/types/workflow.types";
 import { addEdge, applyEdgeChanges, applyNodeChanges, Connection, Edge, EdgeChange, Node, NodeChange } from "@xyflow/react";
 import { validationWorkflow } from "@/utils/workflow-vaildation";
 
@@ -12,7 +12,14 @@ interface WorkflowState {
     isValid: boolean;
     validationErrors: string[];
     isDirty: boolean;
-
+    modalState: {
+      type: 'app-select' | 'trigger-select' | 'action-select' | 'account-connect' | null;
+      selectedApp?: string;
+      selectedTrigger?: string;
+      selectedAction?: string;
+      step?: 'trigger' | 'action';
+    };
+    connections: AppConnection[];
 
     // NOde Operations
     setNodes: (nodes: Node[]) => void;
@@ -34,6 +41,17 @@ interface WorkflowState {
     resetWorkflow: () => void;
     loadWorkflow: (workflow: {nodes: Node[], edges: Edge[]}) => void;
 
+    setModalState: (state: WorkflowState['modalState']) => void;
+    addConnection: (connection: AppConnection) => void;
+    removeConnection: (connectionId: string) => void;
+    getConnectionsForApp: (appId: string) => AppConnection[];
+    configureNode: (nodeId: string, config: {
+      appId?: string;
+      triggerId?: string;
+      actionId?: string;
+      connectionId?: string;
+      config?: Record<string, any>;
+    }) => void;
 
 }
 
@@ -44,11 +62,47 @@ const defaultState = {
     isValid: true,
     validationErrors: [],
     isDirty: false,
+    modalState: { type: null },
+    connections: [],
 }
 
 export const useWorkflowState = create<WorkflowState>((set, get) => ({
     ...defaultState,
 
+    setModalState: (modalState) => set({ modalState }),
+
+  addConnection: (connection) => 
+    set((state) => ({
+      connections: [...state.connections, connection]
+    })),
+
+  removeConnection: (connectionId) =>
+    set((state) => ({
+      connections: state.connections.filter(c => c.id !== connectionId)
+    })),
+
+  getConnectionsForApp: (appId) => 
+    get().connections.filter(c => c.appId === appId),
+
+  configureNode: (nodeId, config) => {
+    set((state) => ({
+      nodes: state.nodes.map((node) =>
+        node.id === nodeId
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                ...config,
+                isConfigured: true,
+                isValid: true
+              }
+            }
+          : node
+      ),
+      isDirty: true
+    }));
+    get().validateWorkflow();
+  },
     setNodes: (nodes) => {
         set({ nodes, isDirty: true });
         get().validateWorkflow();

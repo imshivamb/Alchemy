@@ -1,7 +1,7 @@
 import WorkflowBuilder from "@/components/workflow-builder/workflow-builder";
 import React from "react";
 
-const DashboardPage = () => {
+const EditorPage = () => {
   return (
     <div>
       <WorkflowBuilder />
@@ -9,4 +9,4 @@ const DashboardPage = () => {
   );
 };
 
-export default DashboardPage;
+export default EditorPage;

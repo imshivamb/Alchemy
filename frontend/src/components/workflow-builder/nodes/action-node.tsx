@@ -1,17 +1,10 @@
-import React, { memo } from "react";
-import { Handle, Position } from "@xyflow/react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent } from "@/components/ui/tooltip";
-import { Brain, Coins, Globe, FileJson, AlertCircle } from "lucide-react";
-import type { ActionNode as ActionNodeType } from "@/types/workflow.types";
-
-const icons = {
-  ai: Brain,
-  web3: Coins,
-  http: Globe,
-  transform: FileJson,
-};
+import { apps } from "@/config/apps.config";
+import { Handle, Position } from "@xyflow/react";
+import { Plus } from "lucide-react";
+import { memo } from "react";
+import { ActionNode as ActionNodeType } from "@/types/workflow.types";
 
 interface ActionNodeProps {
   data: ActionNodeType["data"];
@@ -24,132 +17,73 @@ interface ActionNodeProps {
 
 const ActionNode = memo(
   ({ data, selected, isValidConnection }: ActionNodeProps) => {
-    const Icon = icons[data.actionType] || Globe;
-
-    const renderConfigSummary = () => {
-      switch (data.actionType) {
-        case "ai":
-          return (
-            data.config.ai && (
-              <div className="mt-2 space-y-1 text-xs text-gray-500">
-                <div>Model: {data.config.ai.model}</div>
-                <div>Max Tokens: {data.config.ai.maxTokens}</div>
-                {(data.config?.ai?.preprocessors?.length ?? 0) > 0 && (
-                  <div>
-                    Preprocessors: {data.config?.ai?.preprocessors?.length}
-                  </div>
-                )}
-              </div>
-            )
-          );
-
-        case "web3":
-          return (
-            data.config.web3 && (
-              <div className="mt-2 space-y-1 text-xs text-gray-500">
-                <div>Network: {data.config.web3.network}</div>
-                <div>Action: {data.config.web3.actionType}</div>
-                {data.config.web3.amount && (
-                  <div>Amount: {data.config.web3.amount}</div>
-                )}
-              </div>
-            )
-          );
-
-        case "http":
-          return (
-            data.config.http && (
-              <div className="mt-2 space-y-1 text-xs text-gray-500">
-                <div>Method: {data.config.http.method}</div>
-                <div className="truncate">URL: {data.config.http.url}</div>
-              </div>
-            )
-          );
-
-        case "transform":
-          return (
-            data.config.transform && (
-              <div className="mt-2 space-y-1 text-xs text-gray-500">
-                <div>Operations: {data.config.transform.operations.length}</div>
-                <div>Error Behavior: {data.config.transform.errorBehavior}</div>
-              </div>
-            )
-          );
-      }
-    };
+    const app = apps.find((a) => a.id === data.appId);
+    const action = app?.actions?.find((a) => a.id === data.actionId);
 
     return (
       <div className="relative">
+        {/* Input Handle */}
         <Handle
           type="target"
-          position={Position.Left}
+          position={Position.Top}
+          className="h-3 w-3 !bg-gray-300"
           isValidConnection={isValidConnection}
-          className="h-3 w-3 bg-green-500"
-        />
-
-        <Handle
-          type="source"
-          position={Position.Right}
-          isValidConnection={isValidConnection}
-          className="h-3 w-3 bg-green-500"
         />
 
         <Card
-          className={`min-w-[200px] ${
-            selected ? "ring-2 ring-green-500" : ""
-          } ${!data.isValid ? "border-red-300" : ""}`}
+          className={`min-w-[280px] ${selected ? "ring-2 ring-blue-500" : ""} ${
+            !data.isValid ? "border-red-500" : ""
+          }`}
         >
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Icon className="h-5 w-5 text-green-500" />
-                <div className="font-semibold text-green-600">{data.label}</div>
+            {!data.appId ? (
+              // Initial state
+              <div className="flex items-center gap-2 justify-center py-2">
+                <Plus className="h-4 w-4 text-gray-400" />
+                <span className="text-gray-600">Choose an action app</span>
               </div>
-              <Badge
-                variant={data.isValid ? "default" : "destructive"}
-                className={`${
-                  data.actionType === "ai"
-                    ? "bg-purple-500"
-                    : data.actionType === "web3"
-                    ? "bg-orange-500"
-                    : data.actionType === "http"
-                    ? "bg-blue-500"
-                    : "bg-gray-500"
-                }`}
-              >
-                {data.actionType}
-              </Badge>
-            </div>
-
-            <div className="mt-2 text-sm text-gray-600">{data.description}</div>
-
-            {renderConfigSummary()}
-
-            {!data.isValid && data.errorMessage && (
-              <Tooltip>
-                <TooltipContent>{data.errorMessage}</TooltipContent>
-                <div className="mt-2 flex items-center gap-1 text-xs text-red-500">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>Configuration Error</span>
+            ) : !data.isConfigured ? (
+              // Account connection needed
+              <div className="flex items-center gap-2">
+                <span className="h-5 w-5 text-gray-400">{app?.icon}</span>
+                <div>
+                  <h3 className="font-medium">{action?.name}</h3>
+                  <p className="text-sm text-gray-500">Connect {app?.name}</p>
                 </div>
-              </Tooltip>
-            )}
-
-            {data.inputSchema && (
-              <Tooltip>
-                <TooltipContent>
-                  <div>
-                    <div className="font-bold">Required Inputs:</div>
-                    <div>{data.inputSchema.required.join(", ")}</div>
+              </div>
+            ) : (
+              // Fully configured
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="h-5 w-5 text-green-500">{app?.icon}</span>
+                    <div>
+                      <h3 className="font-medium text-green-600">
+                        {action?.name}
+                      </h3>
+                      <p className="text-sm text-gray-500">{app?.name}</p>
+                    </div>
                   </div>
-                </TooltipContent>
-                <Badge variant="outline" className="mt-2">
-                  {data.inputSchema.required.length} Required Inputs
-                </Badge>
-              </Tooltip>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
+
+        {/* Add Node Button */}
+        <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="rounded-full h-8 w-8 p-0 bg-white"
+            onClick={(e) => {
+              e.stopPropagation();
+              // This will be handled by workflow builder to open action selection
+            }}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     );
   }

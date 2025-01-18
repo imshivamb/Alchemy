@@ -65,23 +65,27 @@ export interface EmailConfig {
 }
 
 export interface TriggerNode extends BaseNode {
-    type: 'trigger';
-    data: {
-      triggerType: 'webhook' | 'schedule' | 'email';
-      label: string;
-      description: string;
-      isValid: boolean;
-      errorMessage?: string;
-      config: {
-        webhook?: WebhookConfig;
-        schedule?: ScheduleConfig;
-        email?: EmailConfig;
-      };
-      outputSchema: {
-        type: 'object';
-        properties: Record<string, any>;
-      };
+  type: 'trigger';
+  data: {
+    appId?: string;              // Selected app (Gmail, Sheets, etc)
+    triggerId?: string;          // Specific trigger within the app
+    connectionId?: string;       // Selected account connection
+    isConfigured: boolean;       // Whether the node is fully configured
+    label: string;
+    description: string;
+    isValid: boolean;
+    errorMessage?: string;
+    config: {
+      webhook?: WebhookConfig;
+      schedule?: ScheduleConfig;
+      email?: EmailConfig;
+      [key: string]: any;        // Allow for dynamic app-specific configs
     };
+    outputSchema: {
+      type: 'object';
+      properties: Record<string, any>;
+    };
+  };
 }
 
 // Edge types for workflow connections
@@ -178,30 +182,34 @@ export interface DataTransformConfig {
 }
 
 export interface ActionNode extends BaseNode {
-    type: 'action';
-    data: {
-      actionType: 'ai' | 'web3' | 'http' | 'transform';
-      label: string;
-      description: string;
-      isValid: boolean;
-      errorMessage?: string;
-      config: {
-        ai: AIConfig;
-        web3: Web3Config;
-        http: HTTPConfig;
-        transform: DataTransformConfig;
-      };
-      inputSchema: {
-        type: 'object';
-        properties: Record<string, any>;
-        required: string[];
-      };
-      outputSchema: {
-        type: 'object';
-        properties: Record<string, any>;
-      };
+  type: 'action';
+  data: {
+    appId?: string;              // Selected app
+    actionId?: string;           // Specific action within the app
+    connectionId?: string;       // Selected account connection
+    isConfigured: boolean;
+    label: string;
+    description: string;
+    isValid: boolean;
+    errorMessage?: string;
+    config: {
+      ai?: AIConfig;
+      web3?: Web3Config;
+      http?: HTTPConfig;
+      transform?: DataTransformConfig;
+      [key: string]: any;        // Allow for dynamic app-specific configs
     };
-  }
+    inputSchema: {
+      type: 'object';
+      properties: Record<string, any>;
+      required: string[];
+    };
+    outputSchema: {
+      type: 'object';
+      properties: Record<string, any>;
+    };
+  };
+}
 
   // Condition Node Types
 export type ConditionOperator = 
@@ -251,4 +259,32 @@ export interface ConditionNode extends BaseNode {
 }
 
   export type WorkflowNode = TriggerNode | ActionNode | ConditionNode;
+
+
+  export interface AppConnection {
+    id: string;
+    type: string;
+    name: string;
+    appId: string;
+    credentials: Record<string, any>;
+    createdAt: string;
+  }
+  
+  export interface AppTrigger {
+    id: string;
+    name: string;
+    description: string;
+    appId: string;
+    type: string;
+    configSchema: Record<string, any>;
+  }
+  
+  export interface AppAction {
+    id: string;
+    name: string;
+    description: string;
+    appId: string;
+    type: string;
+    configSchema: Record<string, any>;
+  }
 

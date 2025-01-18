@@ -1,95 +1,89 @@
-import React, { memo } from "react";
-import { TriggerNode as TriggerNodeType } from "@/types/workflow.types";
-import { Webhook, Clock, Mail, AlertCircle } from "lucide-react";
-import { Handle, Position } from "@xyflow/react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Tooltip, TooltipContent } from "@/components/ui/tooltip";
+import { apps } from "@/config/apps.config";
+import { Handle, Position } from "@xyflow/react";
+import { Plus } from "lucide-react";
+import { memo } from "react";
+import { TriggerNode as TriggerNodeType } from "@/types/workflow.types";
+import { NodeActions } from "./node-actions";
 
-const icons = {
-  webhook: Webhook,
-  schedule: Clock,
-  email: Mail,
-};
-
-type TriggerNodeProps = {
+interface TriggerNodeProps {
   data: TriggerNodeType["data"];
   selected: boolean;
   isValidConnection: (connection: {
     source: string;
     target: string;
   }) => boolean;
-};
-
+}
 const TriggerNode = memo(
   ({ data, selected, isValidConnection }: TriggerNodeProps) => {
-    const Icon = icons[data.triggerType] || Webhook;
+    const app = apps.find((a) => a.id === data.appId);
+    const trigger = app?.triggers?.find((t) => t.id === data.triggerId);
 
     return (
       <div className="relative">
-        {/* Output Handle */}
         <Handle
           type="source"
-          position={Position.Right}
+          position={Position.Bottom}
           id="output"
           className="h-3 w-3 bg-blue-500"
           isValidConnection={isValidConnection}
         />
 
         <Card
-          className={`min-w-[200px] ${selected ? "ring-2 ring-blue-500" : ""} ${
+          className={`min-w-[280px] ${selected ? "ring-2 ring-blue-500" : ""} ${
             !data.isValid ? "border-red-500" : ""
           }`}
         >
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Icon className="size-5 text-blue-500" />
-                <div className="font-semibold text-blue-600">{data.label}</div>
+            {!data.appId ? (
+              // Initial state
+              <div className="flex items-center gap-2 justify-center py-2">
+                <Plus className="h-4 w-4 text-gray-400" />
+                <span className="text-gray-600">Choose a trigger app</span>
               </div>
-              <Badge variant={data.isValid ? "default" : "destructive"}>
-                {data.triggerType}
-              </Badge>
-            </div>
-
-            <div className="mt-2 text-sm text-gray-600">{data.description}</div>
-
-            {/* Configuration SUmmary */}
-            <div className="mt-2 space-y-1 text-xs text-gray-500">
-              {data.triggerType === "webhook" && data.config?.webhook && (
-                <>
-                  <div className="">Method: {data.config.webhook.method}</div>
-                  <div className="truncate">
-                    URL: {data.config.webhook.webhookUrl}
-                  </div>
-                </>
-              )}
-              {data.triggerType === "schedule" && data.config?.schedule && (
-                <>
-                  <div>Type: {data.config.schedule.scheduleType}</div>
-                  {data.config.schedule?.cronExpression && (
-                    <div>Cron: {data.config.schedule.cronExpression}</div>
-                  )}
-                  <div>Timezone: {data.config.schedule.timezone}</div>
-                </>
-              )}
-              {data.triggerType === "email" && data.config.email && (
-                <>
-                  <div>Filters: {data.config.email.filters.length}</div>
-                  <div>Folders: {data.config.email.folders.join(", ")}</div>
-                </>
-              )}
-            </div>
-
-            {/* Validation Error */}
-            {!data.isValid && data.errorMessage && (
-              <Tooltip>
-                <TooltipContent>{data.errorMessage}</TooltipContent>
-                <div className="mt-2 flex items-center gap-1 text-xs text-red-500">
-                  <AlertCircle className="h-4 w-4" />
-                  <span>Configuration Error</span>
+            ) : !data.isConfigured ? (
+              // Account connection needed
+              <div className="flex items-center gap-2">
+                <span className="h-5 w-5 text-gray-400">{app?.icon}</span>
+                <div>
+                  <h3 className="font-medium">{trigger?.name}</h3>
+                  <p className="text-sm text-gray-500">Connect {app?.name}</p>
                 </div>
-              </Tooltip>
+              </div>
+            ) : (
+              // Fully configured
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="h-5 w-5 text-blue-500">{app?.icon}</span>
+                    <div>
+                      <h3 className="font-medium text-blue-600">
+                        {trigger?.name}
+                      </h3>
+                      <p className="text-sm text-gray-500">{app?.name}</p>
+                    </div>
+                    <NodeActions
+                      onRename={() => {}}
+                      onCopy={() => {}}
+                      onAddNote={() => {}}
+                    />
+                  </div>
+                </div>
+
+                <div className="text-sm text-gray-600">
+                  {data.appId === "webhook" && data.config?.webhook && (
+                    <>Method: {data.config.webhook.method}</>
+                  )}
+                  {data.appId === "gmail" &&
+                    data.triggerId === "new_email" &&
+                    data.config?.email && (
+                      <>Filters: {data.config.email.filters.length}</>
+                    )}
+                  {/* Add other app-specific summaries */}
+                  {data.appId === "sheets" && <>Spreadsheet connected</>}
+                  {data.appId === "slack" && <>Channel configured</>}
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>

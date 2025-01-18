@@ -1,5 +1,3 @@
-# backend/redis_service/queue/task_queue_manager.py
-
 from typing import Dict, Any, Optional
 from datetime import datetime
 import uuid
