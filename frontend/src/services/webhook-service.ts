@@ -45,7 +45,7 @@ export class WebhookService {
         }
     }
 
-    static async updateWebhook(webhookId: number, data: Partial<BaseWebhook>): Promise<BaseWebhook> {
+    static async updateWebhook(webhookId: string, data: Partial<BaseWebhook>): Promise<BaseWebhook> {
         try {
             const response: AxiosResponse<BaseWebhook> = await axiosInstance.patch(`${API_BASE_URL}/webhooks/${webhookId}/`, data);
 
@@ -66,7 +66,7 @@ export class WebhookService {
         }
     }
 
-    static async deleteWebhook(webhookId: number): Promise<void> {
+    static async deleteWebhook(webhookId: string): Promise<void> {
         try {
             // Delete from both systems
             await Promise.all([
@@ -83,7 +83,7 @@ export class WebhookService {
 
     // FastAPI Specific Operations
 
-    static async getWebhookDetails(webhookId: number): Promise<FastAPIWebhook> {
+    static async getWebhookDetails(webhookId: string): Promise<FastAPIWebhook> {
         try {
             const response: AxiosResponse<FastAPIWebhook> = await axiosInstance.get(`${FASTAPI_BASE_URL}/webhooks/${webhookId}/`);
             return response.data
@@ -95,7 +95,7 @@ export class WebhookService {
         }
     }
 
-    static async triggerWebhook(webhookId: number, payload: any): Promise<string> {
+    static async triggerWebhook(webhookId: string, payload: any): Promise<string> {
         try {
             const response: AxiosResponse<{delivery_id: string}> = await axiosInstance.post(`${FASTAPI_BASE_URL}/webhooks/${webhookId}/trigger`, payload);
             return response.data.delivery_id
@@ -107,7 +107,7 @@ export class WebhookService {
         }
     }
 
-    static async getDeliveries(webhookId: number, params?: {status?: string, limits?: number, offset?: number}): Promise<WebhookDelivery[]> {
+    static async getDeliveries(webhookId: string, params?: {status?: string, limits?: number, offset?: number}): Promise<WebhookDelivery[]> {
         try {
             const response: AxiosResponse<WebhookDelivery[]> = await axiosInstance.get(`${FASTAPI_BASE_URL}/webhooks/${webhookId}/deliveries`, {params});
             return response.data
