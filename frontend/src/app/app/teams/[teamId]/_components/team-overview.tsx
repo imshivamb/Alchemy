@@ -19,10 +19,11 @@ export function TeamOverview({ team }: TeamOverviewProps) {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {team.statistics.total_members}
+            {team.statistics?.total_members || team.members_count || 0}
           </div>
           <p className="text-xs text-muted-foreground">
-            {team.statistics.active_members} active members
+            {team.statistics?.active_members || team.members_count || 0} active
+            members
           </p>
         </CardContent>
       </Card>
@@ -37,7 +38,7 @@ export function TeamOverview({ team }: TeamOverviewProps) {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {team.statistics.roles_distribution.map((role) => (
+            {team.statistics?.roles_distribution?.map((role) => (
               <div
                 key={role.role}
                 className="flex items-center justify-between"
@@ -45,7 +46,11 @@ export function TeamOverview({ team }: TeamOverviewProps) {
                 <span className="text-sm capitalize">{role.role}</span>
                 <span className="text-sm font-medium">{role.count}</span>
               </div>
-            ))}
+            )) || (
+              <div className="flex items-center justify-between">
+                <span className="text-sm">No role data available</span>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

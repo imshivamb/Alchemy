@@ -37,7 +37,7 @@ export class WorkflowService {
             return response.data;
         } catch (error) {
             if (axios.isAxiosError(error)) {
-                throw new Error(error.response?.data?.detail || 'Error creating workflow');
+                throw error;
             }
             throw new Error('An unexpected error occurred');
         }

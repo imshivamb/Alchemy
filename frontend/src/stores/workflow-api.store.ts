@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { WorkflowService } from '@/services/workflow-api-service';
 import { Workflow, CreateWorkflowData, WorkflowLimits } from '@/types/workflow-api.types';
+import axios from 'axios';
 
 interface WorkflowApiState {
     // State
@@ -17,7 +18,7 @@ interface WorkflowApiState {
     // API actions
     fetchWorkflows: () => Promise<void>;
     getWorkflowById: (workflowId: number) => Promise<void>;
-    createWorkflow: (data: CreateWorkflowData) => Promise<void>;
+    createWorkflow: (data: CreateWorkflowData) => Promise<Workflow>;
     updateWorkflow: (workflowId: number, data: Partial<CreateWorkflowData>) => Promise<void>;
     deleteWorkflow: (workflowId: number) => Promise<void>;
     fetchWorkflowLimits: () => Promise<void>;
@@ -77,8 +78,14 @@ export const useWorkflowApiStore = create<WorkflowApiState>((set, get) => ({
             const newWorkflow = await WorkflowService.createWorkflow(data);
             set(state => ({
                 workflows: [...state.workflows, newWorkflow],
+                currentWorkflow: newWorkflow
             }));
+            return newWorkflow;
         } catch (error) {
+            console.log('Store error:', error);
+            if (axios.isAxiosError(error) && error.response?.status === 400) {
+                throw error;
+            }
             const errorMessage = error instanceof Error ? error.message : 'Failed to create workflow';
             set({ error: errorMessage });
             throw error;
@@ -90,6 +97,7 @@ export const useWorkflowApiStore = create<WorkflowApiState>((set, get) => ({
     updateWorkflow: async (workflowId: number, data) => {
         set({ isLoading: true, error: null });
         try {
+            console.log('Updating workflow:', { workflowId, data });
             const updateWorkflow = await WorkflowService.updateWorkflow(workflowId, data);
             set(state => ({
                 workflows: state.workflows.map(w => w.id === workflowId ? updateWorkflow : w),

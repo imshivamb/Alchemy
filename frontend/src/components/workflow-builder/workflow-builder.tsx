@@ -10,7 +10,7 @@ import {
   Node,
   NodeProps,
 } from "@xyflow/react";
-import { useWorkflowState } from "@/stores/workflow.store";
+import { useWorkflowStore } from "@/stores/workflow.store";
 import TriggerNode from "./nodes/trigger-node";
 import ActionNode from "./nodes/action-node";
 import ConditionNode from "./nodes/condition-node";
@@ -22,6 +22,9 @@ import { AppSelectionModal } from "./_components/app-selection-modal";
 import { ConfigurationPanel } from "./sidebar/config-panel";
 import { WorkflowHeader } from "./_components/workflow-header";
 import { WorkflowSidebar } from "./_components/workflow-sidebar";
+import { useWorkflowApiStore } from "@/stores/workflow-api.store";
+import { toast } from "sonner";
+import { useParams } from "next/navigation";
 
 export const WorkflowBuilder: React.FC = () => {
   const [modalState, setModalState] = useState<{
@@ -49,11 +52,33 @@ export const WorkflowBuilder: React.FC = () => {
     updateNode,
     setNodes,
     addNode,
-  } = useWorkflowState();
+  } = useWorkflowStore();
+  const { currentWorkflow, updateWorkflow, getWorkflowById } =
+    useWorkflowApiStore();
   const [workflowName, setWorkflowName] = useState("Untitled workflow");
   const [selectedSidePanel, setSelectedSidePanel] = useState<string | null>(
     null
   );
+  const params = useParams();
+
+  useEffect(() => {
+    const workflowId = params?.id as string;
+    if (workflowId && !currentWorkflow) {
+      getWorkflowById(Number(workflowId));
+    }
+  }, [params?.id, currentWorkflow, getWorkflowById]);
+
+  const handleWorkflowNameChange = async (name: string) => {
+    setWorkflowName(name);
+    if (currentWorkflow) {
+      try {
+        await updateWorkflow(currentWorkflow.id, { name: name });
+      } catch (error) {
+        toast.error("Failed to update workflow name");
+        console.log("Error updating workflow name:", error);
+      }
+    }
+  };
 
   const handleNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
@@ -170,7 +195,7 @@ export const WorkflowBuilder: React.FC = () => {
       <div className="flex-1 flex flex-col">
         <WorkflowHeader
           workflowName={workflowName}
-          setWorkflowName={setWorkflowName}
+          setWorkflowName={handleWorkflowNameChange}
           onSave={handleSave}
           onTest={handleExecute}
           isValid={isValid}

@@ -66,7 +66,7 @@ const defaultState = {
     connections: [],
 }
 
-export const useWorkflowState = create<WorkflowState>((set, get) => ({
+export const useWorkflowStore = create<WorkflowState>((set, get) => ({
     ...defaultState,
 
     setModalState: (modalState) => set({ modalState }),
