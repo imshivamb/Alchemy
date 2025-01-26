@@ -11,6 +11,7 @@ interface NodeActionsProps {
   onRename: () => void;
   onCopy: () => void;
   onAddNote: () => void;
+  onClick: (e: React.MouseEvent) => void;
 }
 
 export const NodeActions = ({

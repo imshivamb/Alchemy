@@ -19,22 +19,20 @@ export type EmailFilter = 'subject' | 'from' | 'to' | 'body';
 export type ScheduleType = 'cron' | 'interval' | 'specific-time';
 
 export interface WebhookConfig {
-    webhookUrl?: string;
-    method: WebhookMethod;
-    headers?: Record<string, string>;
-    authentication?: {
-        username?: string;
-        password?: string;
-        type?: 'none' | 'basic' | 'bearer' | 'api-key';
-        token?: string;
-        apiKey?: string;
-
-    }
-    retryConfig?: {
-        maxRetries?: number;
-        retryInterval?: number;
-    }
-
+  webhookUrl?: string;
+  method: WebhookMethod;  // Note: this is required now
+  headers?: Record<string, string>;
+  authentication?: {
+      type: 'none' | 'basic' | 'bearer' | 'api-key';
+      username?: string;
+      password?: string;
+      token?: string;
+      apiKey?: string;
+  };
+  retryConfig?: {
+      maxRetries?: number;
+      retryInterval?: number;
+  };
 }
 
 export interface ScheduleConfig {
@@ -63,14 +61,14 @@ export interface EmailConfig {
     includeAttachments: boolean;
     markAsRead: boolean;
 }
-
+export type NodeAction = "rename" | "copy" | "note";
 export interface TriggerNode extends BaseNode {
   type: 'trigger';
   data: {
-    appId?: string;              // Selected app (Gmail, Sheets, etc)
-    triggerId?: string;          // Specific trigger within the app
-    connectionId?: string;       // Selected account connection
-    isConfigured: boolean;       // Whether the node is fully configured
+    appId?: string;            
+    triggerId?: string;      
+    connectionId?: string;    
+    isConfigured: boolean;   
     label: string;
     description: string;
     isValid: boolean;

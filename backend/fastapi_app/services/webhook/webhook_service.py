@@ -23,6 +23,7 @@ class WebhookService(BaseRedis):
         name: str,
         config: WebhookConfig,
         workflow_id: str,
+        webhook_id: str,
         user_id: str
     ) -> Dict[str, Any]:
         """Register a newwebhook"""
@@ -36,7 +37,10 @@ class WebhookService(BaseRedis):
         webhook_data = {
             "id": webhook_id,
             "name": name,
-            "config": config.dict(),
+            "config": {
+                **config.dict(),
+                "url": str(config.url)
+            },
             "secret": secret.dict(),
             "workflow_id": workflow_id,
             "user_id": user_id,
@@ -48,7 +52,7 @@ class WebhookService(BaseRedis):
             "failed_deliveries": 0,
         }
         
-        await self.get_data(
+        await self.set_data(
             f"{self.webhook_prefix}{webhook_id}",
             webhook_data
         )

@@ -14,7 +14,7 @@ import { useWorkflowStore } from "@/stores/workflow.store";
 import TriggerNode from "./nodes/trigger-node";
 import ActionNode from "./nodes/action-node";
 import ConditionNode from "./nodes/condition-node";
-import { WorkflowNode } from "@/types/workflow.types";
+import { NodeAction, WorkflowNode } from "@/types/workflow.types";
 import "reactflow/dist/style.css";
 import { AccountConnectionModal } from "./_components/account-connection-modal";
 import { TriggerSelectionModal } from "./_components/trigger-selection-modal";
@@ -25,19 +25,23 @@ import { WorkflowSidebar } from "./_components/workflow-sidebar";
 import { useWorkflowApiStore } from "@/stores/workflow-api.store";
 import { toast } from "sonner";
 import { useParams } from "next/navigation";
+import { WebhookGenerationModal } from "./_components/modals/webhook-gen-modal";
+
+type ModalState = {
+  type:
+    | "app-select"
+    | "trigger-select"
+    | "account-connect"
+    | "webhook-generate"
+    | "rename"
+    | "note"
+    | null;
+  selectedApp?: string;
+  nodeId?: string;
+};
 
 export const WorkflowBuilder: React.FC = () => {
-  const [modalState, setModalState] = useState<{
-    type:
-      | "app-select"
-      | "trigger-select"
-      | "account-connect"
-      | "rename"
-      | "note"
-      | null;
-    selectedApp?: string;
-    nodeId?: string;
-  }>({ type: null });
+  const [modalState, setModalState] = useState<ModalState>({ type: null });
   const {
     nodes,
     edges,
@@ -52,6 +56,7 @@ export const WorkflowBuilder: React.FC = () => {
     updateNode,
     setNodes,
     addNode,
+    configureNode,
   } = useWorkflowStore();
   const { currentWorkflow, updateWorkflow, getWorkflowById } =
     useWorkflowApiStore();
@@ -59,6 +64,7 @@ export const WorkflowBuilder: React.FC = () => {
   const [selectedSidePanel, setSelectedSidePanel] = useState<string | null>(
     null
   );
+  const [isSaving, setIsSaving] = useState(false);
   const params = useParams();
 
   useEffect(() => {
@@ -74,8 +80,8 @@ export const WorkflowBuilder: React.FC = () => {
       try {
         await updateWorkflow(currentWorkflow.id, { name: name });
       } catch (error) {
+        console.error(error);
         toast.error("Failed to update workflow name");
-        console.log("Error updating workflow name:", error);
       }
     }
   };
@@ -89,18 +95,86 @@ export const WorkflowBuilder: React.FC = () => {
     },
     [setSelectedNode]
   );
+
+  const handleTriggerSelection = (triggerId: string) => {
+    if (!selectedNode) return;
+
+    const isWebhook =
+      modalState.selectedApp === "webhook" && triggerId === "incoming_webhook";
+
+    if (isWebhook) {
+      configureNode(selectedNode.id, {
+        appId: modalState.selectedApp,
+        triggerId,
+        isConfigured: false,
+        config: {},
+      });
+      setModalState({ type: "webhook-generate" });
+    } else {
+      setModalState({
+        type: "account-connect",
+        selectedApp: modalState.selectedApp,
+      });
+
+      updateNode(selectedNode.id, {
+        ...selectedNode.data,
+        appId: modalState.selectedApp,
+        triggerId,
+        isConfigured: false,
+        label: "Configure Trigger",
+        config: selectedNode.data.config || {},
+      });
+    }
+  };
+
+  const handleWebhookGeneration = (webhookUrl: string) => {
+    if (selectedNode) {
+      configureNode(selectedNode.id, {
+        ...selectedNode.data,
+        isConfigured: true,
+        config: {
+          webhook: {
+            webhookUrl,
+            method: "POST",
+            headers: {},
+            authentication: {
+              type: "none",
+            },
+            retryConfig: {
+              maxRetries: 3,
+              retryInterval: 60,
+            },
+          },
+        },
+      });
+    }
+  };
+
   const handleSave = useCallback(async () => {
     if (!validateWorkflow()) {
+      toast.error("Workflow is not valid");
       return;
     }
-    // Save functionality will be implemented when we create the API
-  }, [validateWorkflow]);
+    if (!currentWorkflow?.id) {
+      toast.error("No workflow selected");
+      return;
+    }
+    setIsSaving(true);
+    try {
+      await updateWorkflow(currentWorkflow.id, {
+        workflow_data: { nodes, edges },
+      });
+      toast.success("Workflow saved successfully");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to save workflow");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [validateWorkflow, currentWorkflow?.id, nodes, edges, updateWorkflow]);
 
-  const handleExecute = useCallback(async () => {
-    if (!validateWorkflow()) {
-      return;
-    }
-    // Execute functionality will be implemented when we create the API
+  const handleExecute = useCallback(() => {
+    if (!validateWorkflow()) return;
   }, [validateWorkflow]);
 
   const handleNodeAction = useCallback(
@@ -112,15 +186,14 @@ export const WorkflowBuilder: React.FC = () => {
         case "copy":
           const nodeToCopy = nodes.find((n) => n.id === nodeId);
           if (nodeToCopy) {
-            const newNode = {
+            addNode({
               ...nodeToCopy,
               id: `${nodeToCopy.type}-${Date.now()}`,
               position: {
                 x: nodeToCopy.position.x + 50,
                 y: nodeToCopy.position.y + 50,
               },
-            };
-            addNode(newNode);
+            });
           }
           break;
         case "note":
@@ -131,63 +204,49 @@ export const WorkflowBuilder: React.FC = () => {
     [nodes, addNode]
   );
 
-  // Create wrapper components to handle the ReactFlow node props
-  const TriggerNodeWrapper = (props: NodeProps) => (
-    <TriggerNode
-      {...(props as any)}
-      isValidConnection={() => true}
-      onAction={(action: "rename" | "copy" | "note") =>
-        handleNodeAction(action, props.id)
-      } // Add type here
-    />
-  );
-
-  const ActionNodeWrapper = (props: NodeProps) => (
-    <ActionNode
-      {...(props as any)}
-      isValidConnection={() => true}
-      onAction={(action: "rename" | "copy" | "note") =>
-        handleNodeAction(action, props.id)
-      } // Add type here
-    />
-  );
-
-  const ConditionNodeWrapper = (props: NodeProps) => (
-    <ConditionNode {...(props as any)} isValidConnection={() => true} />
-  );
-
+  // Node wrapper components
   const nodeTypes: NodeTypes = {
-    trigger: TriggerNodeWrapper,
-    action: ActionNodeWrapper,
-    condition: ConditionNodeWrapper,
+    trigger: (props: NodeProps) => (
+      <TriggerNode
+        {...(props as any)}
+        isValidConnection={() => true}
+        onAction={(action) => handleNodeAction(action, props.id)}
+      />
+    ),
+    action: (props: NodeProps) => (
+      <ActionNode
+        {...(props as any)}
+        isValidConnection={() => true}
+        onAction={(action: NodeAction) => handleNodeAction(action, props.id)}
+      />
+    ),
+    condition: (props: NodeProps) => (
+      <ConditionNode {...(props as any)} isValidConnection={() => true} />
+    ),
   };
 
   useEffect(() => {
     if (nodes.length === 0) {
-      const initialNode = {
-        id: "trigger-1",
-        type: "trigger",
-        position: { x: window.innerWidth / 3, y: 100 },
-        data: {
-          label: "Choose a trigger app",
-          description: "Click to start configuring your workflow",
-          isValid: false,
-          isConfigured: false,
-          config: {},
-          outputSchema: {
-            type: "object",
-            properties: {},
+      setNodes([
+        {
+          id: "trigger-1",
+          type: "trigger",
+          position: { x: window.innerWidth / 3, y: 100 },
+          data: {
+            label: "Choose a trigger app",
+            description: "Click to start configuring your workflow",
+            isValid: false,
+            isConfigured: false,
+            config: {},
+            outputSchema: { type: "object", properties: {} },
           },
         },
-      };
-
-      setNodes([initialNode]);
+      ]);
     }
   }, [nodes.length]);
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Main Canvas */}
       <WorkflowSidebar
         selectedPanel={selectedSidePanel}
         onPanelChange={setSelectedSidePanel}
@@ -200,6 +259,7 @@ export const WorkflowBuilder: React.FC = () => {
           onTest={handleExecute}
           isValid={isValid}
           isDirty={isDirty}
+          isSaving={isSaving}
         />
 
         <div className="flex-1 relative">
@@ -221,7 +281,6 @@ export const WorkflowBuilder: React.FC = () => {
         </div>
       </div>
 
-      {/* Modals */}
       <AppSelectionModal
         isOpen={modalState.type === "app-select"}
         onClose={() => setModalState({ type: null })}
@@ -234,20 +293,7 @@ export const WorkflowBuilder: React.FC = () => {
         isOpen={modalState.type === "trigger-select"}
         onClose={() => setModalState({ type: "app-select" })}
         selectedAppId={modalState.selectedApp!}
-        onSelectTrigger={(triggerId) => {
-          setModalState({
-            type: "account-connect",
-            selectedApp: modalState.selectedApp,
-          });
-          // Update the trigger node with the selected app and trigger
-          if (selectedNode) {
-            updateNode(selectedNode.id, {
-              appId: modalState.selectedApp,
-              triggerId,
-              isConfigured: false,
-            });
-          }
-        }}
+        onSelectTrigger={handleTriggerSelection}
       />
 
       <AccountConnectionModal
@@ -257,14 +303,17 @@ export const WorkflowBuilder: React.FC = () => {
         onConnect={() => {
           setModalState({ type: null });
           if (selectedNode) {
-            updateNode(selectedNode.id, {
-              isConfigured: true,
-            });
+            updateNode(selectedNode.id, { isConfigured: true });
           }
         }}
       />
 
-      {/* Configuration Panel */}
+      <WebhookGenerationModal
+        isOpen={modalState.type === "webhook-generate"}
+        onClose={() => setModalState({ type: null })}
+        onGenerate={handleWebhookGeneration}
+      />
+
       {selectedNode &&
         (selectedNode.type === "trigger" || selectedNode.type === "action") &&
         selectedNode.data.isConfigured && (
@@ -275,5 +324,3 @@ export const WorkflowBuilder: React.FC = () => {
     </div>
   );
 };
-
-export default WorkflowBuilder;

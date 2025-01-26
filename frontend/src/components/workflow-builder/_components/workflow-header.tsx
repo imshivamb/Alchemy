@@ -15,6 +15,7 @@ interface WorkflowHeaderProps {
   onTest: () => void;
   isValid: boolean;
   isDirty: boolean;
+  isSaving: boolean;
 }
 
 export const WorkflowHeader = ({
@@ -24,15 +25,16 @@ export const WorkflowHeader = ({
   onTest,
   isValid,
   isDirty,
+  isSaving,
 }: WorkflowHeaderProps) => {
   const { user } = AuthStore();
   const { currentWorkflow, updateWorkflow } = useWorkflowApiStore();
-  const [isSaving, setIsSaving] = useState(false);
+  const [isNameSaving, setIsNameSaving] = useState(false);
   const debouncedUpdate: DebouncedFunc<(name: string) => Promise<void>> =
     useCallback(
       debounce(async (name: string) => {
         if (currentWorkflow?.id && name !== currentWorkflow.name) {
-          setIsSaving(true);
+          setIsNameSaving(true);
           try {
             await updateWorkflow(currentWorkflow.id, {
               name: name,
@@ -51,7 +53,7 @@ export const WorkflowHeader = ({
             console.log("Error updating workflow name:", error);
             setWorkflowName(currentWorkflow.name);
           } finally {
-            setIsSaving(false);
+            setIsNameSaving(false);
           }
         }
       }, 1000),
@@ -86,7 +88,7 @@ export const WorkflowHeader = ({
             onChange={(e) => handleNameChange(e.target.value)}
             placeholder="Untitled workflow"
           />
-          {isSaving && (
+          {isNameSaving && (
             <span className="absolute -right-5 top-1/2 -translate-y-1/2">
               <span className="animate-spin">⌛</span>
             </span>
@@ -97,15 +99,28 @@ export const WorkflowHeader = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <Button size="sm" onClick={onSave} disabled={!isDirty || !isValid}>
-            <Save className="h-4 w-4 mr-2" />
-            Save
+          <Button
+            size="sm"
+            onClick={onSave}
+            disabled={!isDirty || !isValid || isSaving}
+          >
+            {isSaving ? (
+              <>
+                <span className="animate-spin mr-2">⌛</span>
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                Save
+              </>
+            )}
           </Button>
           <Button
             size="sm"
             variant="secondary"
             onClick={onTest}
-            disabled={!isValid}
+            disabled={!isValid || isSaving}
           >
             <Play className="h-4 w-4 mr-2" />
             Test

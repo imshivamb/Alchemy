@@ -75,13 +75,14 @@ class WebhookViewSet(viewsets.ModelViewSet):
         return Webhook.objects.filter(workflow__created_by=self.request.user)
     
     def perform_create(self, serializer):
-        """
-        Set the created_by field and validate workflow ownership
-        """
         workflow = get_object_or_404(Workflow, id=self.request.data.get('workflow'))
         if workflow.created_by != self.request.user:
             raise PermissionError("You don't have permission to add webhooks to this workflow")
-        serializer.save(created_by=self.request.user)
+        
+        webhook = serializer.save(created_by=self.request.user)
+        if webhook.webhook_type == 'trigger':
+            webhook.trigger_url = webhook.generate_trigger_url()
+            webhook.save()
         
     @action(detail=True, methods=['post'])
     def trigger(self, request, pk=None):

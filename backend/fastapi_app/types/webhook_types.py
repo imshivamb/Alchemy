@@ -24,7 +24,7 @@ class RetryStrategy(BaseModel):
     
     
 class WebhookConfig(BaseModel):
-    url: HttpUrl
+    url: str
     method: WebhookMethod = WebhookMethod.POST
     headers: Dict[str, str] = {}
     authentication: Optional[Dict[str, str]] = None

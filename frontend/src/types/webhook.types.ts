@@ -39,23 +39,28 @@ export interface WebhookSecret {
 
 // Django Webhook Model
 export interface BaseWebhook {
-    id: string;
+    id?: string;
     name: string;
     workflow: number;
     webhook_type: 'trigger' | 'action';
     trigger_url?: string;
-    secret_key?: string;
     target_url?: string;
     http_method: string;
     headers: Record<string, string>;
-    created_by: string;
-    created_at: string;
-    is_active: boolean;
-    config: any;
-}
+    created_by?: string;
+    created_at?: string;
+    is_active?: boolean;
+    config?: any;
+  }
 
+  export interface CreateWebhookResponse extends BaseWebhook {
+    id: string;
+    trigger_url: string;
+  }
 // FastAPI Extended Webhook
-export interface FastAPIWebhook extends BaseWebhook {
+export interface FastAPIWebhook extends Omit<BaseWebhook, 'config'> {
+    id: string;
+    is_active: boolean;
     status: WebhookStatus;
     last_triggered?: string;
     total_deliveries: number;

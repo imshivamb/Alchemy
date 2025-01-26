@@ -21,7 +21,7 @@ load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
+BASE_URL = os.getenv('BASE_URL', default='http://localhost:8000')
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
@@ -42,7 +42,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # ]
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000", 
+    "http://localhost:3000", "https://webhook.site/"
 ]
 CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
 
@@ -137,7 +137,7 @@ FREE_PLAN_TEAM_LIMIT = 2
 
 # Add plan-specific workflow limits
 WORKFLOW_LIMITS = {
-    'free': 3,
+    'free': 30,
     'basic': 10,
     'premium': 50,
     'enterprise': 100,

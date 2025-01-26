@@ -23,6 +23,7 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -110,6 +111,7 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const router = useRouter();
+  const { state } = useSidebar();
   const { createWorkflow } = useWorkflowApiStore();
   const [limitError, setLimitError] = React.useState<{
     current_count: number;
@@ -149,8 +151,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <Sidebar collapsible="icon" {...props}>
         <SidebarHeader>
           <WorkspaceSwitcher />
-          <Button className="w-full" size="lg" onClick={handleCreateWorkflow}>
-            <Plus className="mr-2 h-4 w-4" /> Create Workflow
+          <Button
+            className="w-full"
+            size={state === "expanded" ? "lg" : "icon"}
+            onClick={handleCreateWorkflow}
+          >
+            <Plus className={state === "expanded" ? "mr-2" : ""} size={16} />
+            {state === "expanded" && <span> Create Workflow</span>}
           </Button>
         </SidebarHeader>
         <SidebarContent>

@@ -81,7 +81,10 @@ class Webhook(models.Model):
         if not self.secret_key:
             self.secret_key = uuid.uuid4().hex
         super().save(*args, **kwargs)
-        
+    
+    def generate_trigger_url(self):
+        base_url = settings.BASE_URL
+        return f"{base_url}/api/webhooks/{self.id}/trigger"
 class WebhookLog(models.Model):
     """
     Logs all webhook activities for debugging and monitoring

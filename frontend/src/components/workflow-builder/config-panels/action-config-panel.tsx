@@ -32,7 +32,9 @@ const ActionConfigPanel = ({ data, onChange }: ActionConfigProps) => {
       <div className="p-4 border-b">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            {app?.icon && <app.icon className="h-5 w-5" />}
+            {app?.icon
+              ? React.createElement(app.icon, { className: "h-5 w-5" })
+              : null}
             <div>
               <h2 className="font-semibold">{action?.name || data.label}</h2>
               <p className="text-sm text-gray-500">{app?.name}</p>

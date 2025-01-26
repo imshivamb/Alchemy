@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/dialog";
 import { ChevronRight } from "lucide-react";
 import { apps } from "@/config/apps.config";
+import React from "react";
 
 type ActionSelectionModalProps = {
   isOpen: boolean;
@@ -28,7 +29,7 @@ export const ActionSelectionModal = ({
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <app.icon className="h-5 w-5" />
+            {app?.icon ? React.createElement(app.icon, { className: "h-5 w-5" }) : null}
             Choose a {app.name} action
           </DialogTitle>
         </DialogHeader>

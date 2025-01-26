@@ -9,7 +9,7 @@ import {
 
 interface WebhookState {
     // State
-    webhooks: BaseWebhook[];
+    webhooks: FastAPIWebhook[];
     currentWebhook: FastAPIWebhook | null;
     deliveries: WebhookDelivery[];
     webhookHealth: WebhookHealth | null;
@@ -22,7 +22,7 @@ interface WebhookState {
 
     // Django CRUD actions
     fetchWebhooks: () => Promise<void>;
-    createWebhook: (data: Partial<BaseWebhook>) => Promise<void>;
+    createWebhook: (data: Partial<BaseWebhook>) => Promise<FastAPIWebhook>;
     updateWebhook: (webhookId: string, data: Partial<BaseWebhook>) => Promise<void>;
     deleteWebhook: (webhookId: string) => Promise<void>;
 
@@ -70,13 +70,15 @@ export const useWebhookStore = create<WebhookState>((set) => ({
     },
 
     createWebhook: async (data) => {
-        set({ isLoading: false, error: null });
+        set({ isLoading: true, error: null });
         try {
             const newWebhook = await WebhookService.createWebhook(data);
-
-            set(state => ({
-                webhooks: [...state.webhooks, newWebhook]
-            }))
+            set((state) => ({
+                ...state,
+                webhooks: [...state.webhooks, newWebhook],
+                currentWebhook: newWebhook
+            }));
+            return newWebhook;
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to create webhook';
             set({ error: errorMessage });
@@ -85,17 +87,18 @@ export const useWebhookStore = create<WebhookState>((set) => ({
             set({ isLoading: false });
         }
     },
-
-    updateWebhook: async (webhookId, data) => {
+    
+    updateWebhook: async (webhookId: string, data: Partial<BaseWebhook>) => {
         set({ isLoading: true, error: null });
         try {
             const updatedWebhook = await WebhookService.updateWebhook(webhookId, data);
-            set(state => ({
+            set((state) => ({
+                ...state,
                 webhooks: state.webhooks.map(w => 
                     w.id === webhookId ? updatedWebhook : w
                 ),
                 currentWebhook: state.currentWebhook?.id === webhookId 
-                    ? { ...state.currentWebhook, ...updatedWebhook }
+                    ? updatedWebhook 
                     : state.currentWebhook
             }));
         } catch (error) {

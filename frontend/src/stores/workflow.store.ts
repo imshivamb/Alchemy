@@ -1,9 +1,16 @@
-import { create } from "zustand";
-import { AppConnection, WorkflowNode } from "@/types/workflow.types";
-import { addEdge, applyEdgeChanges, applyNodeChanges, Connection, Edge, EdgeChange, Node, NodeChange } from "@xyflow/react";
+import { AppConnection, TriggerNode, WorkflowNode } from "@/types/workflow.types";
 import { validationWorkflow } from "@/utils/workflow-vaildation";
+import { addEdge, applyEdgeChanges, applyNodeChanges, Connection, Edge, EdgeChange, Node, NodeChange } from "@xyflow/react";
+import { create } from "zustand";
 
-
+interface ConfigureNodeParams {
+  appId?: string;
+  triggerId?: string;
+  actionId?: string;
+  connectionId?: string;
+  isConfigured?: boolean;
+  config?: Record<string, any>;
+}
 
 interface WorkflowState {
     nodes: Node[];
@@ -50,6 +57,7 @@ interface WorkflowState {
       triggerId?: string;
       actionId?: string;
       connectionId?: string;
+      isConfigured?: boolean;
       config?: Record<string, any>;
     }) => void;
 
@@ -84,25 +92,44 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   getConnectionsForApp: (appId) => 
     get().connections.filter(c => c.appId === appId),
 
-  configureNode: (nodeId, config) => {
-    set((state) => ({
-      nodes: state.nodes.map((node) =>
-        node.id === nodeId
-          ? {
-              ...node,
-              data: {
-                ...node.data,
-                ...config,
-                isConfigured: true,
-                isValid: true
-              }
-            }
-          : node
-      ),
-      isDirty: true
-    }));
+  configureNode: (nodeId: string, config: ConfigureNodeParams) => {
+    set((state) => {
+      const currentNode = state.nodes.find(n => n.id === nodeId);
+      if (!currentNode) return state;
+  
+      const newNode: TriggerNode = {
+        ...currentNode,
+        type: 'trigger',
+        data: {
+          label: "Configure Webhook Trigger",
+          description: "Webhook trigger configuration",
+          isValid: true,
+          isConfigured: config.isConfigured ?? true,
+          appId: config.appId,
+          triggerId: config.triggerId,
+          config: config.config || {},
+          outputSchema: {
+            type: 'object',
+            properties: {}
+          }
+        }
+      };
+  
+      // Create new nodes array with updated node
+      const newNodes = state.nodes.map(node => 
+        node.id === nodeId ? newNode : node
+      );
+  
+      return {
+        ...state,
+        nodes: newNodes,
+        selectedNode: state.selectedNode?.id === nodeId ? newNode : state.selectedNode,
+        isDirty: true
+      };
+    });
     get().validateWorkflow();
   },
+
     setNodes: (nodes) => {
         set({ nodes, isDirty: true });
         get().validateWorkflow();

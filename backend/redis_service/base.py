@@ -56,21 +56,20 @@ class BaseRedis:
         await self.redis.publish(channel, json.dumps(message))
         
     async def subscribe(self, channel: str, callback: Callable):
-        """Subscribe to channel with callback"""
+        """Subscribe to channel with callback (fixed)"""
         if channel not in self._subscribers:
             self._subscribers[channel] = []
+            await self.pubsub.subscribe(channel)
+            
         self._subscribers[channel].append(callback)
         
         async def listener():
-            await self.pubsub.subscribe(channel)
-            while True:
-                message = await self.pubsub.get_message(ignore_subscribe_messages=True)
-                if message:
-                    data = json.loads(message['data'])
+            async for message in self.pubsub.listen():
+                if message["type"] == "message":
+                    data = json.loads(message["data"])
                     for cb in self._subscribers[channel]:
                         await cb(data)
-                await asyncio.sleep(0.01)
-                
+        
         asyncio.create_task(listener())
         
     # Queue Operations

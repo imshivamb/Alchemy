@@ -5,6 +5,8 @@ from pydantic import BaseModel
 from ...types.webhook_types import *
 from fastapi_app.services.webhook.webhook_service import WebhookService
 from ...core.auth import get_current_user
+from fastapi import HTTPException, Request
+import httpx
 
 router = APIRouter()
 webhook_service = WebhookService()
@@ -13,6 +15,7 @@ class WebhookCreateRequest(BaseModel):
     name: str
     config: WebhookConfig
     workflow_id: str
+    webhook_id: str
 
 class WebhookResponse(BaseModel):
     id: str
@@ -49,6 +52,7 @@ async def create_webhook(
     """Create a new webhook"""
     try:
         webhook = await webhook_service.register_webhook(
+            webhook_id=request.webhook_id,
             name=request.name,
             config=request.config,
             workflow_id=request.workflow_id,
@@ -280,3 +284,33 @@ async def get_webhook_health(
         return await webhook_service.get_webhook_health(webhook_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+@router.post("/webhooks/test-proxy")
+async def test_webhook_proxy(
+    request: Request,
+    current_user: dict = Depends(get_current_user)
+):
+    """Proxy webhook test requests through backend"""
+    try:
+        data = await request.json()
+        
+        # Validate input
+        if not data.get("target_url"):
+            raise HTTPException(400, "Missing target_url")
+            
+        async with httpx.AsyncClient() as client:
+            response = await client.request(
+                method=data.get("method", "POST"),
+                url=data["target_url"],
+                headers=data.get("headers", {}),
+                json=data.get("payload", {})
+            )
+            
+            return {
+                "status": response.status_code,
+                "headers": dict(response.headers),
+                "body": response.text
+            }
+            
+    except httpx.HTTPError as e:
+        raise HTTPException(502, f"Proxy error: {str(e)}")

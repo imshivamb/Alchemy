@@ -1,4 +1,4 @@
-import WorkflowBuilder from "@/components/workflow-builder/workflow-builder";
+import { WorkflowBuilder } from "@/components/workflow-builder/workflow-builder";
 import React from "react";
 
 const EditorPage = () => {

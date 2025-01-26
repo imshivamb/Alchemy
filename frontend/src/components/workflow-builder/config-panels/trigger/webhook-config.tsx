@@ -10,6 +10,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { WebhookConfig as WebhookConfigType } from "@/types/workflow.types";
+import { TestWebhookDialog } from "../../_components/test-webhook-dialog";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface WebhookConfigProps {
   config?: WebhookConfigType;
@@ -38,13 +41,18 @@ export const WebhookConfig = ({
     value: "none" | "basic" | "bearer" | "api-key"
   ) => {
     const newAuth = {
-      ...config.authentication,
-      type: value,
+      type: value, // This is now required
       // Reset other auth fields when changing type
-      username: value === "basic" ? config.authentication?.username : undefined,
-      password: value === "basic" ? config.authentication?.password : undefined,
-      token: value === "bearer" ? config.authentication?.token : undefined,
-      apiKey: value === "api-key" ? config.authentication?.apiKey : undefined,
+      ...(value === "basic"
+        ? {
+            username: config.authentication?.username,
+            password: config.authentication?.password,
+          }
+        : value === "bearer"
+        ? { token: config.authentication?.token }
+        : value === "api-key"
+        ? { apiKey: config.authentication?.apiKey }
+        : {}),
     };
 
     onChange({
@@ -55,24 +63,45 @@ export const WebhookConfig = ({
 
   // Helper function to handle authentication field changes
   const handleAuthFieldChange = (field: string, value: string) => {
+    const newAuth = {
+      type: config.authentication?.type || "none",
+      ...config.authentication,
+      [field]: value,
+    };
+
     onChange({
       ...config,
-      authentication: {
-        ...config.authentication,
-        [field]: value,
-      },
+      authentication: newAuth,
     });
   };
 
   return (
     <div className="space-y-4">
-      <div>
+      <div className=" ">
         <Label>Webhook URL</Label>
-        <Input
-          placeholder="https://..."
-          value={config.webhookUrl ?? ""}
-          onChange={(e) => onChange({ ...config, webhookUrl: e.target.value })}
-        />
+        <div className="flex flex-col space-y-3 gap-2">
+          <Input
+            placeholder="Generated webhook URL will appear here..."
+            value={config.webhookUrl ?? ""}
+            readOnly
+          />
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (config.webhookUrl) {
+                navigator.clipboard.writeText(config.webhookUrl);
+                toast.success("URL copied");
+              }
+            }}
+          >
+            Copy
+          </Button>
+          <TestWebhookDialog
+            webhookUrl={config.webhookUrl ?? ""}
+            headers={config.headers}
+            authentication={config.authentication}
+          />
+        </div>
       </div>
 
       <div>

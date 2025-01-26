@@ -2,8 +2,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { apps } from "@/config/apps.config";
 import { Handle, Position } from "@xyflow/react";
 import { Plus } from "lucide-react";
-import { memo } from "react";
-import { TriggerNode as TriggerNodeType } from "@/types/workflow.types";
+import React, { memo } from "react";
+import {
+  NodeAction,
+  TriggerNode as TriggerNodeType,
+} from "@/types/workflow.types";
 import { NodeActions } from "./node-actions";
 
 interface TriggerNodeProps {
@@ -13,11 +16,15 @@ interface TriggerNodeProps {
     source: string;
     target: string;
   }) => boolean;
+  onAction?: (action: NodeAction) => void;
 }
 const TriggerNode = memo(
-  ({ data, selected, isValidConnection }: TriggerNodeProps) => {
+  ({ data, selected, isValidConnection, onAction }: TriggerNodeProps) => {
     const app = apps.find((a) => a.id === data.appId);
     const trigger = app?.triggers?.find((t) => t.id === data.triggerId);
+    const handleClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
+    };
 
     return (
       <div className="relative">
@@ -44,7 +51,11 @@ const TriggerNode = memo(
             ) : !data.isConfigured ? (
               // Account connection needed
               <div className="flex items-center gap-2">
-                <span className="h-5 w-5 text-gray-400">{app?.icon}</span>
+                <span className="h-5 w-5 text-gray-400">
+                  {app?.icon
+                    ? React.createElement(app.icon, { className: "h-5 w-5" })
+                    : null}
+                </span>
                 <div>
                   <h3 className="font-medium">{trigger?.name}</h3>
                   <p className="text-sm text-gray-500">Connect {app?.name}</p>
@@ -55,7 +66,13 @@ const TriggerNode = memo(
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="h-5 w-5 text-blue-500">{app?.icon}</span>
+                    <span className="h-5 w-5 text-gray-400">
+                      {app?.icon
+                        ? React.createElement(app.icon, {
+                            className: "h-5 w-5",
+                          })
+                        : null}
+                    </span>
                     <div>
                       <h3 className="font-medium text-blue-600">
                         {trigger?.name}
@@ -63,9 +80,10 @@ const TriggerNode = memo(
                       <p className="text-sm text-gray-500">{app?.name}</p>
                     </div>
                     <NodeActions
-                      onRename={() => {}}
-                      onCopy={() => {}}
-                      onAddNote={() => {}}
+                      onRename={() => onAction?.("rename")}
+                      onCopy={() => onAction?.("copy")}
+                      onAddNote={() => onAction?.("note")}
+                      onClick={handleClick}
                     />
                   </div>
                 </div>

@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { apps } from "@/config/apps.config";
+import React from "react";
 
 type AccountConnectionModalProps = {
   isOpen: boolean;
@@ -33,14 +34,20 @@ export const AccountConnectionModal = ({
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <app.icon className="h-5 w-5" />
+            {app?.icon
+              ? React.createElement(app.icon, { className: "h-5 w-5" })
+              : null}
             Connect {app.name}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div className="text-center">
-            <app.icon className="h-12 w-12 mx-auto mb-4" />
+            {app?.icon
+              ? React.createElement(app.icon, {
+                  className: "h-12 w-12 mx-auto mb-4",
+                })
+              : null}
             <h3 className="font-medium mb-2">
               Connect your {app.name} account
             </h3>
