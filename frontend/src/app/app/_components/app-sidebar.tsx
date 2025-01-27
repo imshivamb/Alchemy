@@ -56,7 +56,7 @@ const data = {
     },
     {
       title: "AI Tasks",
-      url: "/app/ai-tasks",
+      url: "/app/ai",
       icon: Bot,
     },
     {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FastAPIWebhook } from "@/types/webhook.types";
 import { useWebhookStore } from "@/stores/webhook.store";
 import { WebhookHeader } from "./_components/webhook-header";
@@ -15,6 +15,10 @@ export default function WebhooksPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const { webhooks, fetchWebhooks } = useWebhookStore();
+
+  useEffect(()=> {
+    fetchWebhooks();
+  }, [])
 
   return (
     <div className="flex h-full">

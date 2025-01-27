@@ -18,7 +18,7 @@ export function WebhookPagination({
 }: WebhookPaginationProps) {
   return (
     <Pagination>
-      <PaginationContent>
+      <PaginationContent className="space-x-2">
         <PaginationItem>
           <PaginationLink
             onClick={() => currentPage > 1 && onPageChange(currentPage - 1)}

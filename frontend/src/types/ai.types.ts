@@ -35,17 +35,18 @@ export interface AIConfig {
 }
 
 export interface AITask {
-    id: string;
     workflow_id: string;
-    user_id: string;
-    config: AIConfig;
     status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
     created_at: string;
-    updated_at?: string;
-    result?: any;
+    input_data: {
+      temperature?: number;
+      max_tokens?: number;
+    };
+    model: string;
+    result: any;
     error?: string;
-    usage?: any;
-}
+    updated_at: string;
+  }
 
 export interface AIModel {
     id: AIModelType;

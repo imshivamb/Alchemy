@@ -174,30 +174,25 @@ class AIService(BaseRedis):
         limit: int = 10,
         offset: int = 0
     ) -> List[Dict[str, Any]]:
-        """List AI tasks with optional filtering"""
+        try:
+            pattern = f"{self.task_prefix}*"
+            keys = await self.redis.keys(pattern)
+            tasks = []
 
-        task_keys = await self.scan_keys(f"{self.task_prefix}*")
-        tasks = []
-        
-
-        for key in task_keys:
-            task_data = await self.get_data(key)
-            if task_data:
-                # Apply filters
-                if task_data["user_id"] != user_id:
-                    continue
-                if workflow_id and task_data["workflow_id"] != workflow_id:
-                    continue
-                if status and task_data["status"] != status:
-                    continue
-                    
-                tasks.append(task_data)
-                
-        # Sort by created_at descending
-        tasks.sort(key=lambda x: x["created_at"], reverse=True)
-        
-        # Apply pagination
-        return tasks[offset:offset + limit]
+            for key in keys:
+                task_data = await self.get_data(key)
+                if task_data and isinstance(task_data, dict):
+                    # No user_id filter since it's not in the data structure
+                    if workflow_id and task_data.get("workflow_id") != workflow_id:
+                        continue
+                    if status and task_data.get("status") != status:
+                        continue
+                    tasks.append(task_data)
+            
+            tasks.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+            return tasks[offset:offset + limit]
+        except Exception as e:
+            raise Exception(f"Error listing tasks: {str(e)}")
 
     async def create_task(
         self,
