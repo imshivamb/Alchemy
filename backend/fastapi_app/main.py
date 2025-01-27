@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .api.v1 import ai, webhook, monitoring, web3
-from .api.v1.integrations import slack, gmail, sheets, calendar
+from .api.v1.integrations import slack, gmail, sheets, calendar, discord
 from fastapi.openapi.utils import get_openapi
 from .core.auth import get_current_user
 
@@ -48,6 +48,7 @@ app.include_router(gmail.router, prefix="/api/v1/integrations/gmail", tags=["Gma
 app.include_router(sheets.router, prefix="/api/v1/integrations/sheets", tags=["Google Sheets"])
 app.include_router(calendar.router, prefix="/api/v1/integrations/calendar", tags=["Google Calendar"])
 app.include_router(slack.router, prefix="/api/v1/integrations/slack", tags=["Slack"])
+app.include_router(discord.router, prefix="/api/v1/integrations/discord", tags=["Discord"])
 
 
 

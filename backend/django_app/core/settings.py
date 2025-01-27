@@ -79,6 +79,8 @@ CORS_ALLOW_HEADERS = [
 ]
 # Application definition
 
+DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+
 INSTALLED_APPS = [
     "django.contrib.admin", #Admin interface
     "django.contrib.auth",  #Auth System

@@ -84,15 +84,25 @@ export class WebhookService {
         }
     }
 
-    static async deleteWebhook(webhookId: string): Promise<void> {
+    static async deleteWebhook(fastApiWebhookId: string): Promise<void> {
         try {
+            // Get webhook details from FastAPI
+            const webhook = await axiosInstance.get(`${FASTAPI_BASE_URL}/webhooks/${fastApiWebhookId}`);
+            
+            // Extract Django ID from the webhook URL
+            const djangoId = webhook.data.config.url.split('/webhooks/')[1].split('/trigger')[0];
+    
             // Delete from both systems
             await Promise.all([
-                axiosInstance.delete(`${API_BASE_URL}/webhooks/${webhookId}/`),
-                axiosInstance.delete(`${FASTAPI_BASE_URL}/webhooks/${webhookId}`)
+                axiosInstance.delete(`${API_BASE_URL}/webhooks/${djangoId}/`),
+                axiosInstance.delete(`${FASTAPI_BASE_URL}/webhooks/${fastApiWebhookId}`)
             ]);
         } catch (error) {
             if (axios.isAxiosError(error)) {
+                if (error.response?.status === 404) {
+                    console.warn('Webhook not found in one of the systems');
+                    return;
+                }
                 throw new Error(error.response?.data?.detail || 'Error deleting webhook');
             }
             throw new Error('An unexpected error occurred');
