@@ -33,7 +33,7 @@ interface WebhookState {
         status?: string; 
         limit?: number; 
         offset?: number 
-    }) => Promise<void>;
+    }) => Promise<WebhookDelivery[]>;
     getDeliveryDetails: (deliveryId: string) => Promise<WebhookDelivery>;
     retryDelivery: (deliveryId: string) => Promise<void>;
     verifySignature: (webhookId: string, payload: string, signature: string) => Promise<boolean>;
@@ -163,6 +163,7 @@ export const useWebhookStore = create<WebhookState>((set) => ({
         try {
             const deliveries = await WebhookService.getDeliveries(webhookId, params);
             set({ deliveries });
+            return deliveries;
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Failed to fetch deliveries';
             set({ error: errorMessage });

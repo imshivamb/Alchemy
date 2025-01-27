@@ -20,7 +20,7 @@ export type ScheduleType = 'cron' | 'interval' | 'specific-time';
 
 export interface WebhookConfig {
   webhookUrl?: string;
-  method: WebhookMethod;  // Note: this is required now
+  method: WebhookMethod;
   headers?: Record<string, string>;
   authentication?: {
       type: 'none' | 'basic' | 'bearer' | 'api-key';

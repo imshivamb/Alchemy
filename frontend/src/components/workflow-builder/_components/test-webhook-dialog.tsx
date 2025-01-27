@@ -6,18 +6,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { WebhookService } from "@/services/webhook-service";
+import { WebhookAuthentication } from "@/types/webhook.types";
 import { useState } from "react";
 import { toast } from "sonner";
-import { WebhookConfig } from "@/types/workflow.types";
-import { Input } from "@/components/ui/input";
-import { WebhookService } from "@/services/webhook-service";
 
 interface TestWebhookDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
   webhookUrl: string;
   headers?: Record<string, string>;
-  authentication?: WebhookConfig["authentication"];
+  authentication?: WebhookAuthentication;
 }
 
 export const TestWebhookDialog = ({

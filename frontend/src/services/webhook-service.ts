@@ -1,5 +1,5 @@
 import axiosInstance from "@/lib/axios/axios-instance";
-import { BaseWebhook, FastAPIWebhook, WebhookDelivery, WebhookHealth, WebhookStatus } from "@/types/webhook.types";
+import { BaseWebhook, FastAPIWebhook, WebhookDelivery, WebhookHealth } from "@/types/webhook.types";
 import axios, { AxiosResponse } from "axios";
 
 
@@ -10,36 +10,10 @@ export class WebhookService {
     // Django Basic CRUD Operations
     static async getWebhooks(): Promise<FastAPIWebhook[]> {
         try {
-            // Get webhooks from both Django and FastAPI
-            const djangoResponse: AxiosResponse<BaseWebhook[]> = await axiosInstance.get(
-                `${API_BASE_URL}/webhooks/`
-            );
-            
-            // Fetch additional data from FastAPI
-            const fastAPIResponse: AxiosResponse<FastAPIWebhook[]> = await axiosInstance.get(
+            const response = await axiosInstance.get(
                 `${FASTAPI_BASE_URL}/webhooks`
             );
-    
-            // Merge the data
-            return djangoResponse.data.map(djangoWebhook => {
-                const fastAPIWebhook = fastAPIResponse.data.find(fw => fw.id === djangoWebhook.id);
-                if (!fastAPIWebhook) {
-                    // If no FastAPI data, create default FastAPI fields
-                    return {
-                        ...djangoWebhook,
-                        status: WebhookStatus.PENDING,
-                        total_deliveries: 0,
-                        successful_deliveries: 0,
-                        failed_deliveries: 0,
-                        secret: {
-                            key: '',
-                            header_name: 'X-Webhook-Signature',
-                            hash_algorithm: 'sha256'
-                        }
-                    } as FastAPIWebhook;
-                }
-                return fastAPIWebhook;
-            });
+            return response.data;
         } catch (error) {
             if (axios.isAxiosError(error)) {
                 throw error;
@@ -73,10 +47,7 @@ export class WebhookService {
                 }
             );
     
-            return {
-                ...response.data,
-                ...fastAPIResponse.data
-            };
+            return fastAPIResponse.data;
         } catch (error) {
             if (axios.isAxiosError(error)) {
                 throw new Error(error.response?.data?.detail || 'Error creating webhook');

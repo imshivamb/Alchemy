@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional, Tuple, Union
+from typing import Dict, Any, Optional, Tuple, Union, List
 import uuid
 from datetime import datetime, timedelta
 import httpx
@@ -196,6 +196,52 @@ class WebhookService(BaseRedis):
             
         await self._update_delivery(delivery_id, update_data)
             
+    async def list_webhooks(
+        self,
+        user_id: str,
+        workflow_id: Optional[str] = None,
+        status: Optional[WebhookStatus] = None,
+        page: int = 1,
+        per_page: int = 50
+    ) -> List[Dict[str, Any]]:
+        """List webhooks with optional filtering by workflow_id and status.
+        
+        Args:
+            user_id: ID of the user requesting webhooks
+            workflow_id: Optional workflow ID to filter webhooks
+            status: Optional webhook status to filter by
+            page: Page number for pagination (default: 1)
+            per_page: Number of webhooks per page (default: 50)
+            
+        Returns:
+            List of webhook data dictionaries
+        """
+        pattern = f"{self.webhook_prefix}*"
+        webhooks = []
+        
+        async for key in self.redis.scan_iter(match=pattern):
+            webhook_data = await self.get_data(key)
+            
+            if not webhook_data or webhook_data.get("user_id") != user_id:
+                continue
+                
+            # Apply filters if provided
+            if workflow_id and webhook_data.get("workflow_id") != workflow_id:
+                continue
+                
+            if status and webhook_data.get("status") != status:
+                continue
+                
+            webhooks.append(webhook_data)
+        
+        # Sort webhooks by created_at descending
+        webhooks.sort(key=lambda x: x["created_at"], reverse=True)
+        
+        # Apply pagination
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        
+        return webhooks[start_idx:end_idx]
     def _generate_signature(
         self, 
         secret: str,
@@ -261,3 +307,141 @@ class WebhookService(BaseRedis):
                 webhook["failed_deliveries"] += 1
             webhook["last_triggered"] = datetime.utcnow().isoformat()
             await self.set_data(f"{self.webhook_prefix}{webhook_id}", webhook)
+            
+    async def list_deliveries(
+        self,
+        webhook_id: str,
+        status: Optional[str] = None,
+        limit: int = 10,
+        offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """List webhook deliveries with pagination and filtering"""
+        pattern = f"{self.delivery_prefix}*"
+        deliveries = []
+        
+        async for key in self.redis.scan_iter(match=pattern):
+            delivery_data = await self.get_data(key)
+            if delivery_data and delivery_data.get("webhook_id") == webhook_id:
+                # Apply status filter if provided
+                if status and delivery_data.get("status") != status:
+                    continue
+                deliveries.append(delivery_data)
+        
+        # Sort by created_at descending
+        deliveries.sort(key=lambda x: x["created_at"], reverse=True)
+        
+        # Apply pagination
+        paginated_deliveries = deliveries[offset:offset + limit]
+        
+        # Add duration for each delivery
+        for delivery in paginated_deliveries:
+            if delivery.get("completed_at"):
+                start_time = datetime.fromisoformat(delivery["created_at"])
+                end_time = datetime.fromisoformat(delivery["completed_at"])
+                delivery["duration"] = (end_time - start_time).total_seconds() * 1000  # Convert to ms
+        
+        return paginated_deliveries
+
+    async def get_webhook_health(self, webhook_id: str) -> Dict[str, Any]:
+        """Get webhook health metrics including response times and status codes"""
+        webhook = await self.get_webhook(webhook_id)
+        if not webhook:
+            raise ValueError(f"Webhook with id {webhook_id} not found")
+
+        # Get recent deliveries for metrics
+        recent_deliveries = await self._get_recent_deliveries(webhook_id)
+        
+        # Calculate response times
+        response_times = []
+        status_codes = {}
+        error_types = {}
+        retry_count = 0
+        
+        for delivery in recent_deliveries:
+            # Track response times
+            if delivery.get("completed_at"):
+                start_time = datetime.fromisoformat(delivery["created_at"])
+                end_time = datetime.fromisoformat(delivery["completed_at"])
+                duration = (end_time - start_time).total_seconds() * 1000  # Convert to ms
+                response_times.append({
+                    "timestamp": delivery["created_at"],
+                    "duration": duration
+                })
+            
+            # Track status codes
+            if delivery.get("response", {}).get("status_code"):
+                status_code = str(delivery["response"]["status_code"])
+                status_codes[status_code] = status_codes.get(status_code, 0) + 1
+            
+            # Track error types
+            if delivery.get("error"):
+                error_type = delivery["error"].split(":")[0]
+                error_types[error_type] = error_types.get(error_type, 0) + 1
+            
+            # Track retries
+            if delivery.get("attempts", 0) > 1:
+                retry_count += 1
+
+        # Calculate health score (0-100)
+        success_rate = (webhook["successful_deliveries"] / webhook["total_deliveries"] * 100) if webhook["total_deliveries"] > 0 else 0
+        avg_response_time = sum(rt["duration"] for rt in response_times) / len(response_times) if response_times else 0
+        
+        # Determine health status
+        health_status = "healthy"
+        if success_rate < 90:
+            health_status = "degraded"
+        if success_rate < 70:
+            health_status = "unhealthy"
+        if webhook["total_deliveries"] == 0:
+            health_status = "unknown"
+
+        return {
+            "health_score": success_rate,
+            "status": health_status,
+            "metrics": {
+                "total_deliveries": webhook["total_deliveries"],
+                "successful_deliveries": webhook["successful_deliveries"],
+                "failed_deliveries": webhook["failed_deliveries"],
+                "average_response_time": avg_response_time,
+                "status_codes": status_codes,
+                "error_types": error_types,
+                "retry_count": retry_count
+            },
+            "response_times": response_times
+        }
+
+    async def _get_recent_deliveries(self, webhook_id: str, limit: int = 100) -> List[Dict[str, Any]]:
+        """Get recent deliveries for a webhook"""
+        # TODO: need to implement this based on the storage strategy
+        # This is a placeholder that returns an empty list
+        pattern = f"{self.delivery_prefix}*"
+        deliveries = []
+        
+        async for key in self.redis.scan_iter(match=pattern):
+            delivery_data = await self.get_data(key)
+            if delivery_data and delivery_data.get("webhook_id") == webhook_id:
+                deliveries.append(delivery_data)
+        
+        # Sort by created_at and limit
+        deliveries.sort(key=lambda x: x["created_at"], reverse=True)
+        return deliveries[:limit]
+    
+    async def delete_webhook(self, webhook_id: str) -> None:
+        """Delete a webhook and its associated deliveries"""
+        # First check if webhook exists
+        webhook = await self.get_webhook(webhook_id)
+        if not webhook:
+            raise ValueError(f"Webhook with id {webhook_id} not found")
+
+        # Delete webhook data
+        await self.redis.delete(f"{self.webhook_prefix}{webhook_id}")
+
+        # Delete associated deliveries
+        pattern = f"{self.delivery_prefix}*"
+        async for key in self.redis.scan_iter(match=pattern):
+            delivery_data = await self.get_data(key)
+            if delivery_data and delivery_data.get("webhook_id") == webhook_id:
+                await self.redis.delete(key)
+
+        # Return None on successful deletion
+        return None

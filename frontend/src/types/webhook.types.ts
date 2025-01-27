@@ -25,7 +25,7 @@ export interface WebhookConfig {
     url: string;
     method: WebhookMethod;
     headers: Record<string, string>;
-    authentication?: Record<string, string>;
+    authentication?: WebhookAuthentication;
     retry_strategy: RetryStrategy;
     timeout: number;
     verify_ssl: boolean;
@@ -68,8 +68,25 @@ export interface FastAPIWebhook extends Omit<BaseWebhook, 'config'> {
     failed_deliveries: number;
     config: WebhookConfig;
     secret: WebhookSecret;
+    metrics?: WebhookMetrics;
 }
-
+export interface WebhookMetrics {
+    response_times: Array<{
+      timestamp: string;
+      duration: number;
+    }>;
+    health_score: number;
+    status: 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
+    metrics: {
+      total_deliveries: number;
+      successful_deliveries: number;
+      failed_deliveries: number;
+      average_response_time: number;
+      status_codes: Record<string, number>;
+      error_types: Record<string, number>;
+      retry_count: number;
+    };
+  }
 export interface WebhookDelivery {
     id: string;
     webhook_id: string;
@@ -80,8 +97,12 @@ export interface WebhookDelivery {
     completed_at?: string;
     attempts: number;
     next_retry?: string;
-    response?: any;
+    response?: {
+      status_code: number;
+      body: any;
+    };
     error?: string;
+    duration?: number;
 }
 
 export interface WebhookHealth {
@@ -97,3 +118,11 @@ export interface WebhookHealth {
         retry_count: number;
     };
 }
+
+export interface WebhookAuthentication {
+    type: "none" | "basic" | "bearer" | "api-key";
+    username?: string;
+    password?: string;
+    token?: string;
+    apiKey?: string;
+  }
