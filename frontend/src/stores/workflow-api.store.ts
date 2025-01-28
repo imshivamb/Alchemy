@@ -36,13 +36,14 @@ export const useWorkflowApiStore = create<WorkflowApiState>((set, get) => ({
     clearError: () => set({ error: null }),
 
     // API actions
-    fetchWorkflows: async() => {
+    fetchWorkflows: async () => {
         set({ isLoading: true, error: null });
         try {
             const workflows = await WorkflowService.getWorkflows();
+            console.log("Fetched Workflows:", workflows);
             set({ workflows });
-
-            const {currentWorkflow} = get();
+    
+            const { currentWorkflow } = get();
             if (!currentWorkflow && workflows.length > 0) {
                 set({ currentWorkflow: workflows[0] });
             }

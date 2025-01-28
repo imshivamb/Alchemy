@@ -32,11 +32,17 @@ class WorkflowViewSet(viewsets.ModelViewSet):
         response = super().list(request, *args, **kwargs)
         # Add limit information to list response
         profile = request.user.profile
-        response.data['limits'] = {
-            'plan': profile.plan_type,
-            'total_limit': profile.get_workflow_limit(),
-            'remaining': profile.workflows_remaining()
-        }
+        
+        # Convert response.data to a dict if it's a list
+        if isinstance(response.data, list):
+            response.data = {
+                'results': response.data,
+                'limits': {
+                    'plan': profile.plan_type,
+                    'total_limit': profile.get_workflow_limit(),
+                    'remaining': profile.workflows_remaining()
+                }
+            }
         return response
     
 class WorkflowTaskViewSet(viewsets.ModelViewSet):

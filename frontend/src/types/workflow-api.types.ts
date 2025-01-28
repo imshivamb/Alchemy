@@ -55,7 +55,7 @@ export interface WebhookLog {
 
 export interface WorkflowLimits {
     plan: string;
-    max_allowed: number;
+    total_limit: number;
     current_count: number;
     remaining: number;
 }

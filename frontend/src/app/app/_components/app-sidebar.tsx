@@ -60,6 +60,11 @@ const data = {
       icon: Bot,
     },
     {
+      title: "Web3 Tasks",
+      url: "/app/web3",
+      icon: Bot,
+    },
+    {
       title: "Webhooks",
       url: "/app/webhooks",
       icon: Webhook,

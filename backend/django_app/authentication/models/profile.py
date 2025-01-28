@@ -94,6 +94,20 @@ class UserProfile(BaseModel):
             settings.DEFAULT_API_KEY_LIMIT
         )
     
+    def get_workflow_limit(self):
+        """Get workflow limit based on plan"""
+        from django.conf import settings
+        return settings.WORKFLOW_LIMITS.get(
+            self.plan_type,
+            settings.DEFAULT_WORKFLOW_LIMIT
+        )
+
+    def workflows_remaining(self):
+        """Get number of remaining workflows available"""
+        max_allowed = self.get_workflow_limit()
+        current_count = self.get_workflows_count()
+        return max(0, max_allowed - current_count)
+    
     def has_reached_workflow_limit(self):
         """Check if user has reached workflow limit"""
         from django.conf import settings

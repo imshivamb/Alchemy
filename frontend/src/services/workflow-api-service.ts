@@ -7,8 +7,8 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '';
 export class WorkflowService {
     static async getWorkflows(): Promise<Workflow[]> {
         try {
-            const response: AxiosResponse<Workflow[]> = await axiosInstance.get(`${API_BASE_URL}/workflows/`);
-            return response.data 
+            const response: AxiosResponse<{ results: Workflow[] }> = await axiosInstance.get(`${API_BASE_URL}/workflows/`);
+            return response.data.results;
         } catch (error) {
             if (axios.isAxiosError(error)) {
                 throw new Error(error.response?.data?.detail || 'Failed to fetch workflows');
