@@ -1,4 +1,3 @@
-# scripts/run.py
 import uvicorn
 import subprocess
 import sys
@@ -18,7 +17,6 @@ def run_django():
     ])
 
 def run_fastapi():
-    # Add both backend and fastapi_app to Python path
     if BACKEND_DIR not in sys.path:
         sys.path.insert(0, BACKEND_DIR)
     

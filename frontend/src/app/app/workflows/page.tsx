@@ -45,7 +45,7 @@ export default function WorkflowsPage() {
         open={!!selectedWorkflow}
         onOpenChange={() => setSelectedWorkflow(null)}
       >
-        <SheetContent className="w-[600px] sm:w-[600px]">
+        <SheetContent className="!sm:w-[600px]">
           {selectedWorkflow && (
             <WorkflowDetailsPanel
               workflow={selectedWorkflow}

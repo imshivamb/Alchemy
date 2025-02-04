@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -91,7 +91,7 @@ export const TeamsOverview = () => {
         )}
 
         <div className="mt-4 flex gap-2">
-          <Link href="/teams" className="flex-1">
+          <Link href="/app/teams" className="flex-1">
             <Button variant="outline" className="w-full">
               View All Teams
             </Button>

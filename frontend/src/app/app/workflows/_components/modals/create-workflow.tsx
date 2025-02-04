@@ -44,7 +44,7 @@ export function CreateWorkflowModal({
         name: formData.name,
         description: formData.description,
         is_active: formData.is_active,
-        workflow_data: {}, // Empty initially, will be populated when building workflow
+        workflow_data: {},
       });
 
       toast.success("Workflow created successfully");
